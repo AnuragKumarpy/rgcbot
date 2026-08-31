@@ -1,0 +1,52 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+downloads/
+*.egg-info/
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.session
+*.session-journal
+user_session.session
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Database scratch files
+*.sqlite3
+*.db
+data/
+
+# Temporary artifacts & uploads
+artifacts/
+emojis_to_upload/
+test_ship_card.jpg
+plan.txt
+scripts/*.json
+scripts/auth_state.json

@@ -1,0 +1,19 @@
+[Unit]
+Description=RGCBot Telegram Supergroup Management & Fun Bot
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/rgcbot
+ExecStart=/usr/bin/docker compose -f docker-compose.yml up --build
+ExecStop=/usr/bin/docker compose -f docker-compose.yml down
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rgcbot_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_secure_pass@postgres:5432/rgcbot
+      - REDIS_URL=redis://redis:6379/0
+      - TELEGRAM_API_ID=28102220
+      - TELEGRAM_API_HASH=c9ff5d60c4b80bf5f7de1092082207a5
+      - USER_SESSION_PATH=/app/user_session.session
+    volumes:
+      - /home/ubuntu/user_session.session:/app/user_session.session:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rgcbot_net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: rgcbot_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_secure_pass
+      POSTGRES_DB: rgcbot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rgcbot_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: rgcbot_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rgcbot_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  rgcbot_net:
+    driver: bridge
