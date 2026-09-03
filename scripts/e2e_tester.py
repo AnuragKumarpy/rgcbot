@@ -8,10 +8,11 @@ SESSION_PATH = "scripts/user_session"
 BOT_USERNAME = "RandomGCCorebot"
 TARGET_CHAT_ID = -1003801913218  # "Random GC"
 
+
 async def test_bot():
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
-    
+
     me = await client.get_me()
     print(f"==================================================")
     print(f"🚀 Logged in as: {me.first_name} (@{me.username}) [ID: {me.id}]")
@@ -44,7 +45,7 @@ async def test_bot():
             print(f"\n👉 [Group] Sending: {g_cmd}")
             sent = await client.send_message(group_entity, g_cmd)
             await asyncio.sleep(3)
-            
+
             # Fetch latest 3 messages in group
             g_msgs = await client.get_messages(group_entity, limit=3)
             for m in g_msgs:
@@ -68,6 +69,7 @@ async def test_bot():
         print(f"Could not inspect log channel: {e}")
 
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(test_bot())

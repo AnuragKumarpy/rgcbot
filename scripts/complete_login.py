@@ -10,16 +10,17 @@ PHONE = "+919286394869"
 SESSION_PATH = "scripts/user_session"
 PASSWORD_2FA = "1234"
 
+
 async def main():
     if len(sys.argv) < 2:
         print("ERROR: Please provide the OTP code. Usage: python complete_login.py <code>")
         return
 
     code = sys.argv[1].strip()
-    
+
     with open("scripts/auth_state.json", "r") as f:
         state = json.load(f)
-    
+
     phone_code_hash = state["phone_code_hash"]
 
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
@@ -34,6 +35,7 @@ async def main():
     me = await client.get_me()
     print(f"SUCCESS_LOGIN:{me.id}:{me.first_name}:{me.username}")
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

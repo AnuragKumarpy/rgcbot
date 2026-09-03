@@ -10,6 +10,7 @@ SESSION_PATH = "scripts/user_session"
 
 SOURCE_PACKS = ["NewsEmoji", "Topics", "marketment"]
 
+
 async def create_pack():
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
@@ -20,14 +21,16 @@ async def create_pack():
     # 1. Download best emojis from source packs
     os.makedirs("emojis_to_upload", exist_ok=True)
     emoji_files = []
-    
+
     for pack in SOURCE_PACKS:
         try:
-            res = await client(GetStickerSetRequest(stickerset=InputStickerSetShortName(short_name=pack), hash=0))
+            res = await client(
+                GetStickerSetRequest(stickerset=InputStickerSetShortName(short_name=pack), hash=0)
+            )
             for i, doc in enumerate(res.documents[:5]):
                 alt = "✨"
                 for a in doc.attributes:
-                    if hasattr(a, 'alt') and a.alt:
+                    if hasattr(a, "alt") and a.alt:
                         alt = a.alt
                 filename = f"emojis_to_upload/{pack}_{i}.tgs"
                 await client.download_media(doc, file=filename)
@@ -82,6 +85,7 @@ async def create_pack():
 
     # Set short name
     import random
+
     short_name = f"rgcbot_elite_{random.randint(100, 999)}"
     await client.send_message(stickers_bot, short_name)
     await asyncio.sleep(3)
@@ -91,6 +95,7 @@ async def create_pack():
         print(f"Final Reply from @Stickers:\n{m.text}\n---")
 
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(create_pack())

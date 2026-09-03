@@ -6,7 +6,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)](Dockerfile)
 [![AWS Ready](https://img.shields.io/badge/AWS-EC2%20%7C%20ECS-orange.svg)](deploy/)
 
-**RGCBot** is a high-performance, asynchronous Telegram bot designed specifically for public supergroups and active communities. It seamlessly blends **strict administrative moderation**, **interactive gamification/fun**, and a decoupled **Ephemeral Auto-Deletion (TTL) Engine** that keeps group conversations fast, clean, and 100% spam-free.
+**RGCBot** is an asynchronous Telegram bot for supergroups and active communities. It combines moderation, anti-spam controls, inline settings, fun commands, a TTL-based message cleanup worker, and optional MTProto-backed username resolution/member sync.
 
 ---
 
@@ -18,20 +18,25 @@
 - **Trigger Command Cleaner**: Automatically deletes the user's triggering `/command` message as well when the bot's response expires.
 - **Configurable Per-Group TTLs**: Admins can customize or disable TTLs per category via inline settings (`/settings`).
 
-### 2. 🛡️ Complete Moderation Suite
+### 2. 📊 Activity History & Analytics
+- **Group History**: `/stats` renders a group activity card with daily, weekly, monthly, or all-time message history, active members, and top contributors.
+- **User History**: `/ustats` shows a member's message history across chats, plus their top groups, bans, karma, coins, and game stats.
+- **Global History**: `/topstats` aggregates the most active users, groups, and game scorers across the bot.
+
+### 3. 🛡️ Moderation Suite
 - **Granular Restraints**: `/ban`, `/sban`, `/tban <time>`, `/mute`, `/smute`, `/tmute <time>`, `/kick`, `/unban`, `/unmute`.
 - **Warn Escalation Matrix**: `/warn <reason>`, `/warns`, `/resetwarns`. Automatically triggers a temporary mute, kick, or ban when a member reaches the group's warning limit.
 - **Bulk Cleanup**: `/purge` (batch delete up to 100 recent messages) and `/del`.
 - **Pinned Message Controls**: `/pin` and `/unpin`.
 
-### 3. 🚪 Gatekeeper Verification & Anti-Spam
+### 4. 🚪 Gatekeeper Verification & Anti-Spam
 - **Join Captcha Gate**: Restricts new members immediately upon joining until they pass a challenge (Button click or Math problem `12 + 5 = ?`).
 - **Auto-Kick on Timeout**: Automatically kicks unverified accounts if they don't solve the captcha within the timeout window (default 90s).
 - **Anti-Flood Shield**: Detects rapid message bursts and mutes flooders automatically for 10 minutes.
 - **Anti-Link & Anti-Forward Guard**: Deletes non-whitelisted URLs, Telegram invite links (`t.me/+...`), and channel forwards.
 - **Audit Log Channel**: Broadcasts all moderation actions, kicks, bans, and security triggers in real time to a dedicated private Telegram channel.
 
-### 4. 🎮 Interactive Gamification & Fun Engine
+### 5. 🎮 Interactive Gamification & Fun Engine
 - **Reputation & Karma**: Users award karma by replying with natural triggers (`+rep`, `thanks`, `+1`, `helpful`). Features pair cooldowns and anti-self-rep protection.
 - **Daily Streak Rewards**: `/daily` claims daily bonus coins with consecutive-day streak multipliers.
 - **Russian Roulette (`/roulette`)**: Spin the cylinder with a 1-in-6 chance of getting **temporarily muted for 60 seconds**! Safe spins earn survival coins and streaks.
@@ -40,12 +45,20 @@
   - `/duel [bet_amount]`: Challenge another user to a live dice duel with interactive "Accept" / "Decline" inline buttons.
 - **Social Utilities & Flairs**:
   - `/profile` / `/me`: Sleek profile card showing karma, coins, streak, rank tier, and badges.
+   - `/ustats`: Personal messaging, ban, and game stats with appeal actions when available.
+   - `/topstats`: Global top messaging users, top chats, and top game scorers.
+   - `/appeal`: Request admin review for active bans through the bot.
   - `/settitle <flair>`: Set custom flair titles.
   - `/afk <reason>`: Sets AFK status; automatically announces AFK when mentioned and clears upon return.
   - `/filter <word> <reply>` & `/filters`: Dynamic auto-responder keywords.
 
-### 5. ⚙️ Interactive Settings Dashboard
-- Run `/settings` in any group to open a dynamic inline keyboard menu for one-click toggling of modules, adjusting TTL timers, and configuring warn thresholds.
+### 6. ⚙️ Interactive Settings Dashboard
+- Run `/settings` in any group to open the inline keyboard menu for toggling modules, adjusting TTL timers, and configuring warn thresholds.
+
+### 7. 🔌 Runtime Modes
+- `BOT_MODE=webhook` starts the embedded `aiohttp` server and registers the Telegram webhook.
+- `BOT_MODE=polling` runs long polling and disables the webhook before polling starts.
+- The bot always starts the TTL sweeper, database layer, Redis client, and command metadata setup during startup.
 
 ---
 
@@ -112,7 +125,7 @@ Telegram Cloud API
    ```
 
 2. **Set up PostgreSQL and Redis**:
-   Make sure PostgreSQL and Redis are running locally or via Docker:
+   The default runtime expects PostgreSQL and Redis. Make sure both are running locally or via Docker:
    ```bash
    docker run -d --name pg -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
    docker run -d --name redis -p 6379:6379 redis:7-alpine
@@ -121,6 +134,13 @@ Telegram Cloud API
 3. **Run the Bot**:
    ```bash
    python -m src.main
+   ```
+
+4. **Optional local testing shortcut**:
+   If you want to avoid loading the repo `.env` during test collection, run pytest from outside the repository root and point `PYTHONPATH` at the project.
+   ```bash
+   cd /tmp
+   PYTHONPATH=/home/Gaurav/Desktop/tg/rgcbot uv run --project /home/Gaurav/Desktop/tg/rgcbot pytest -q /home/Gaurav/Desktop/tg/rgcbot/tests
    ```
 
 ---
@@ -177,6 +197,20 @@ For a fully serverless, zero-maintenance AWS architecture:
 3. Register the task definition from `deploy/aws-ecs-task-def.json` in ECS.
 4. Attach an **Application Load Balancer (ALB)** with an HTTPS listener pointing to the target group on port 8000 (`/health`).
 
+### Current Environment Variables
+
+The canonical template lives in [.env.example](.env.example). The main runtime keys are:
+
+- `BOT_TOKEN`, `BOT_MODE`, `WEBHOOK_HOST`, `WEBHOOK_PATH`, `WEBHOOK_SECRET`, `SERVER_HOST`, `SERVER_PORT`
+- `BOT_SUPER_ADMINS`
+- `DATABASE_URL`, `DB_ECHO`, `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`
+- `REDIS_URL`, `REDIS_TTL_QUEUE_KEY`, `REDIS_RATE_LIMIT_PREFIX`
+- `DEFAULT_MOD_TTL`, `DEFAULT_FUN_TTL`, `DEFAULT_RULES_TTL`, `DEFAULT_WARN_TTL`, `DEFAULT_GENERAL_TTL`
+- `SWEEPER_INTERVAL_SECONDS`, `SWEEPER_BATCH_SIZE`
+- `DEFAULT_FLOOD_LIMIT`, `DEFAULT_FLOOD_WINDOW`, `DEFAULT_CAPTCHA_TIMEOUT`, `DEFAULT_LOG_CHANNEL_ID`
+- `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `USER_SESSION_STRING`
+- `LOG_LEVEL`
+
 ---
 
 ## 📜 Full Command Reference
@@ -209,6 +243,10 @@ For a fully serverless, zero-maintenance AWS architecture:
 | `+rep` / `thanks` | - | Award +1 reputation to replied member | 30s |
 | `/karma` / `/rep` | - | View reputation score, coins, and tier | 30s |
 | `/topkarma` | - | Top 10 group reputation leaderboard | 45s |
+| `/ustats` | `[reply]` | View personal messaging, ban, and game stats | 30s |
+| `/topstats` | - | Global top messaging users, groups, and game scorers | 45s |
+| `/stats` | - | Group activity history, top contributors, and timeframe cards | 45s |
+| `/appeal` | - | Request review for active ban(s) through the bot | 45s |
 | `/daily` | - | Claim daily bonus coins & streak | 30s |
 | `/roulette` | - | Russian Roulette (1/6 chance of 60s mute!) | 25s / 60s |
 | `/duel` | `[amount]` | Challenge replied user to dice duel | 60s |
@@ -231,7 +269,12 @@ For a fully serverless, zero-maintenance AWS architecture:
 | Variable | Default | Description |
 |---|---|---|
 | `BOT_TOKEN` | *Required* | Telegram Bot token from @BotFather |
-| `BOT_MODE` | `polling` | `polling` (recommended for EC2) or `webhook` |
+| `BOT_MODE` | `webhook` | `webhook` (recommended for production) or `polling` |
+| `WEBHOOK_HOST` | `https://yourdomain.com` | Public HTTPS base URL that Telegram can reach |
+| `WEBHOOK_PATH` | `/webhook` | Webhook route path registered with Telegram |
+| `WEBHOOK_SECRET` | `None` | Optional secret token validated on incoming webhook calls |
+| `SERVER_HOST` | `0.0.0.0` | Local bind address for the webhook HTTP server |
+| `SERVER_PORT` | `8000` | Local bind port for the webhook HTTP server |
 | `DATABASE_URL` | `postgresql+asyncpg://...` | PostgreSQL async connection string |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
 | `BOT_SUPER_ADMINS` | `""` | Comma-separated list of Super Admin user IDs |
@@ -252,6 +295,17 @@ Run the automated test suite with pytest:
 make test
 # Or directly:
 pytest tests/ -v
+```
+
+If local `.env` values interfere with collection, use the same isolated invocation the CI/docs expect:
+```bash
+cd /tmp
+PYTHONPATH=/home/Gaurav/Desktop/tg/rgcbot BOT_SUPER_ADMINS=[] uv run --project /home/Gaurav/Desktop/tg/rgcbot pytest -q /home/Gaurav/Desktop/tg/rgcbot/tests
+```
+
+For linting:
+```bash
+make lint
 ```
 
 ---

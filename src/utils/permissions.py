@@ -1,13 +1,17 @@
 from typing import Optional
 from aiogram import Bot
 from aiogram.enums import ChatMemberStatus
-from aiogram.types import ChatMember, ChatMemberAdministrator, ChatMemberOwner, Message
+from aiogram.types import ChatMember, ChatMemberAdministrator, ChatMemberOwner
 from loguru import logger
 from src.config.settings import settings
 
 
 def is_super_admin(user_id: int) -> bool:
     return user_id in settings.bot_super_admins
+
+
+# Alias to prevent any naming collision (handles both conventions)
+is_super_user = is_super_admin
 
 
 async def get_chat_member_safe(bot: Bot, chat_id: int, user_id: int) -> Optional[ChatMember]:

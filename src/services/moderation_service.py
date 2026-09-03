@@ -10,6 +10,7 @@ from src.models.log import ModerationLog
 from src.models.member import GroupMember
 from src.models.user import User
 from src.services.audit_service import AuditService
+from src.utils.permissions import is_super_admin
 from src.utils.time_parser import format_duration
 
 
@@ -96,14 +97,13 @@ class ModerationService:
         action_type = ActionType.BAN
         duration_str = None
 
-
         if duration_seconds and duration_seconds > 0:
             until_date = datetime.utcnow() + timedelta(seconds=duration_seconds)
             action_type = ActionType.TEMPBAN
             duration_str = format_duration(duration_seconds)
 
-        if target_user.user_id == is_super_admin():
-            return False  # Prevent self-ban
+        if is_super_admin(target_user.user_id):
+            return False  # Prevent super admin ban
 
         # Telegram API Call
         await bot.ban_chat_member(
@@ -117,7 +117,7 @@ class ModerationService:
         await cls.ensure_user(
             session, target_user.user_id, target_user.first_name, target_user.username
         )
-        if admin_user or is_super_admin():
+        if admin_user:
             await cls.ensure_user(
                 session, admin_user.user_id, admin_user.first_name, admin_user.username
             )
@@ -252,9 +252,10 @@ class ModerationService:
             can_invite_users=False,
             can_pin_messages=False,
         )
-        if target_user.user_id == is_super_admin():
-            return False  # Prevent self-mute
-            
+        
+        if is_super_admin(target_user.user_id):
+            return False  # Prevent super admin mute
+
         await bot.restrict_chat_member(
             chat_id=group.chat_id,
             user_id=target_user.user_id,
@@ -389,6 +390,9 @@ class ModerationService:
         admin_user: Optional[User],
         reason: Optional[str] = None,
     ) -> bool:
+        if is_super_admin(target_user.user_id):
+            return False  # Prevent super admin kick
+
         # Kick in Telegram is ban followed by immediate unban
         await bot.ban_chat_member(chat_id=group.chat_id, user_id=target_user.user_id)
         await bot.unban_chat_member(chat_id=group.chat_id, user_id=target_user.user_id)
@@ -438,6 +442,8 @@ class ModerationService:
         Increments warning count. If max warns reached, executes escalation action.
         Returns: (current_warns, max_warns, escalation_action_taken_or_None)
         """
+        if is_super_admin(target_user.user_id):
+            return 0, group.max_warns, None  # No action for super admins
 
         await cls.ensure_user(
             session, target_user.user_id, target_user.first_name, target_user.username
@@ -455,8 +461,6 @@ class ModerationService:
             target_user.username,
             group.title,
         )
-        if member == is_super_user():
-            return 0, group.max_warns, None  # No action for super admins
 
         member.warnings_count += 1
         current_warns = member.warnings_count

@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 
 services:
   bot:
@@ -16,7 +16,7 @@ services:
       - TELEGRAM_API_HASH=c9ff5d60c4b80bf5f7de1092082207a5
       - USER_SESSION_PATH=/app/user_session.session
     volumes:
-      - /home/ubuntu/user_session.session:/app/user_session.session:ro
+      - ${SESSION_PATH:-./user_session.session}:/app/user_session.session:ro
     ports:
       - "8000:8000"
     depends_on:

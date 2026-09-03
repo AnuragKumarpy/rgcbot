@@ -4,14 +4,11 @@ After=network.target docker.service
 Requires=docker.service
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=/home/ubuntu/rgcbot
-ExecStart=/usr/bin/docker compose -f docker-compose.yml up --build
+ExecStart=/usr/bin/docker compose -f docker-compose.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.yml down
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
 User=ubuntu
 Group=ubuntu
 

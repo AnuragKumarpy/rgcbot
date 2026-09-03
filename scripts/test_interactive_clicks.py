@@ -6,6 +6,7 @@ API_HASH = "c9ff5d60c4b80bf5f7de1092082207a5"
 SESSION_PATH = "scripts/user_session"
 BOT_USERNAME = "RandomGCCorebot"
 
+
 async def test():
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
@@ -25,7 +26,7 @@ async def test():
     print("📥 DM /start Reply Text:\n", start_reply.text if start_reply else "No reply")
     if start_reply and start_reply.buttons:
         print("🔘 Buttons:", [[b.text for b in row] for row in start_reply.buttons])
-        
+
         # 2. Click "👑 Super Admin Control Panel" Button
         print("\n👉 Clicking '👑 Super Admin Control Panel' inline button...")
         for row in start_reply.buttons:
@@ -33,7 +34,7 @@ async def test():
                 if "Super Admin" in b.text:
                     await b.click()
                     break
-        
+
         await asyncio.sleep(3)
         updated_msgs = await client.get_messages(bot, limit=3)
         for m in updated_msgs:
@@ -63,11 +64,15 @@ async def test():
                         if gm.sender_id == bot.id:
                             print("📥 Remote Group Settings Dashboard opened in DM:\n", gm.text)
                             if gm.buttons:
-                                print("🔘 Remote Group Control Buttons:", [[b.text for b in row] for row in gm.buttons])
+                                print(
+                                    "🔘 Remote Group Control Buttons:",
+                                    [[b.text for b in row] for row in gm.buttons],
+                                )
                             break
                 break
 
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(test())

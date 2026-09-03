@@ -8,6 +8,7 @@ SESSION_PATH = "scripts/user_session"
 BOT_USERNAME = "RandomGCCorebot"
 GROUP_ID = -1003801913218
 
+
 async def main():
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
@@ -52,6 +53,7 @@ async def main():
             print([btn.text for btn in row])
 
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -14,21 +14,24 @@ SESSION_PATH = "scripts/user_session"
 
 SOURCE_PACKS = ["NewsEmoji", "Topics", "marketment"]
 
+
 async def main():
     # 1. Download animated emojis using Telethon
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
-    
+
     os.makedirs("emojis_bot_pack", exist_ok=True)
     emoji_items = []
-    
+
     for pack in SOURCE_PACKS:
         try:
-            res = await client(GetStickerSetRequest(stickerset=InputStickerSetShortName(short_name=pack), hash=0))
+            res = await client(
+                GetStickerSetRequest(stickerset=InputStickerSetShortName(short_name=pack), hash=0)
+            )
             for i, doc in enumerate(res.documents[:6]):
                 alt = "⚡️"
                 for a in doc.attributes:
-                    if hasattr(a, 'alt') and a.alt:
+                    if hasattr(a, "alt") and a.alt:
                         alt = a.alt
                 filename = f"emojis_bot_pack/{pack}_{i}.tgs"
                 if not os.path.exists(filename):
@@ -37,18 +40,19 @@ async def main():
                 print(f"Prepared {filename} ({alt})")
         except Exception as e:
             print(f"Error downloading from {pack}: {e}")
-            
+
     await client.disconnect()
 
     # 2. Create Custom Emoji Set using Bot API
     bot = Bot(token=BOT_TOKEN)
     bot_info = await bot.get_me()
     print(f"\nBot: @{bot_info.username} (ID: {bot_info.id})")
-    
+
     import random
+
     set_name = f"rgc_elite_{random.randint(10, 99)}_by_{bot_info.username}"
     title = "RGCBot Elite Custom Emojis"
-    
+
     input_stickers = []
     for filepath, alt in emoji_items[:12]:
         input_stickers.append(
@@ -58,7 +62,7 @@ async def main():
                 emoji_list=[alt],
             )
         )
-        
+
     print(f"Creating custom emoji set '{set_name}' with {len(input_stickers)} emojis...")
     try:
         res = await bot.create_new_sticker_set(
@@ -71,7 +75,7 @@ async def main():
         print(f"Pack creation success: {res}")
     except Exception as e:
         print(f"Error creating sticker set: {e}")
-        
+
     # Retrieve the sticker set to get exact custom emoji document IDs
     try:
         created_set = await bot.get_sticker_set(name=set_name)
@@ -83,6 +87,7 @@ async def main():
         print(f"Error fetching created set: {e}")
 
     await bot.session.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

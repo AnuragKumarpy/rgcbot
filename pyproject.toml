@@ -20,6 +20,10 @@ dependencies = [
     "loguru>=0.7.2",
     "python-dotenv>=1.0.1",
     "pytz>=2024.1",
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.6",
+    "pillow>=10.3.0",
+    "telethon>=1.36.0",
 ]
 
 [project.optional-dependencies]
@@ -39,4 +43,9 @@ target-version = "py311"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.5",
+]
 

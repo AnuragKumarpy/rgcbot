@@ -12,6 +12,7 @@ LOG_CHANNEL_ID = -1004381062510
 
 results = []
 
+
 def record(test_name, location, command, response_text, status="PASS"):
     entry = {
         "test": test_name,
@@ -19,17 +20,18 @@ def record(test_name, location, command, response_text, status="PASS"):
         "command": command,
         "response": response_text.strip() if response_text else "(No response / Action performed)",
         "status": status,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
     }
     results.append(entry)
     print(f"\n[{status}] {test_name} ({location})")
     print(f"👉 Command: {command}")
-    print(f"📥 Response:\n{entry['response']}\n" + "-"*50)
+    print(f"📥 Response:\n{entry['response']}\n" + "-" * 50)
+
 
 async def run_exhaustive_tests():
     client = TelegramClient(SESSION_PATH, API_ID, API_HASH)
     await client.start()
-    
+
     me = await client.get_me()
     print(f"🚀 Authenticated as: {me.first_name} (@{me.username}) [ID: {me.id}]")
 
@@ -136,7 +138,12 @@ async def run_exhaustive_tests():
 
     await client.send_message(group, "/filter testbot Welcome to the test environment!")
     await asyncio.sleep(2)
-    record("Add Keyword Filter", "Random GC Supergroup", "/filter testbot Welcome to the test environment!", "Filter added successfully")
+    record(
+        "Add Keyword Filter",
+        "Random GC Supergroup",
+        "/filter testbot Welcome to the test environment!",
+        "Filter added successfully",
+    )
 
     sent_trigger = await client.send_message(group, "testbot")
     await asyncio.sleep(2.5)
@@ -146,11 +153,21 @@ async def run_exhaustive_tests():
         if m.sender_id == bot.id:
             filter_reply = m.text
             break
-    record("Trigger Keyword Filter", "Random GC Supergroup", "testbot", filter_reply or "Welcome to the test environment!")
+    record(
+        "Trigger Keyword Filter",
+        "Random GC Supergroup",
+        "testbot",
+        filter_reply or "Welcome to the test environment!",
+    )
 
     await client.send_message(group, "/stop testbot")
     await asyncio.sleep(2)
-    record("Remove Keyword Filter", "Random GC Supergroup", "/stop testbot", "Filter removed successfully")
+    record(
+        "Remove Keyword Filter",
+        "Random GC Supergroup",
+        "/stop testbot",
+        "Filter removed successfully",
+    )
 
     print("\n=======================================================")
     print("PHASE 5: VERIFYING AUDIT CHANNEL ACTIVITY (-1004381062510)")
@@ -160,13 +177,16 @@ async def run_exhaustive_tests():
     audit_logs = await client.get_messages(log_ch, limit=15)
     print(f"📊 Retrieved {len(audit_logs)} recent audit channel records from -1004381062510:")
     for log in audit_logs:
-        print(f"📝 [{log.date}]:\n{log.text}\n" + "-"*40)
+        print(f"📝 [{log.date}]:\n{log.text}\n" + "-" * 40)
 
     with open("scripts/exhaustive_test_report.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    print("\n✅ All exhaustive tests executed and recorded into scripts/exhaustive_test_report.json")
+    print(
+        "\n✅ All exhaustive tests executed and recorded into scripts/exhaustive_test_report.json"
+    )
     await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(run_exhaustive_tests())
