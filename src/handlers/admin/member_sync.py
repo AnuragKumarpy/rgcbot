@@ -27,7 +27,9 @@ async def handle_sync_members(
 
     status_msg = await reply_with_ttl(
         message,
-        animate_text(f"{E_ROCKET} <b>Syncing group members...</b>\n<i>Fetching full member roster from Telegram...</i>"),
+        animate_text(
+            f"{E_ROCKET} <b>Syncing group members...</b>\n<i>Fetching full member roster from Telegram...</i>"
+        ),
         ttl_type=TTLType.MODERATION,
         delete_trigger=False,
     )
@@ -43,7 +45,9 @@ async def handle_sync_members(
         )
     else:
         # Fallback to admins
-        adm_count = await MemberSyncService.sync_admins_fallback(message.bot, session, message.chat.id)
+        adm_count = await MemberSyncService.sync_admins_fallback(
+            message.bot, session, message.chat.id
+        )
         text = animate_text(
             f"{E_SPARKLES} <b>Admins Synchronized!</b> (<code>{adm_count}</code> admins)\n\n"
             "<i>Regular members will be automatically indexed as they join and send messages.</i>"

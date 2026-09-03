@@ -89,10 +89,14 @@ async def handle_tag_active(
         return
 
     custom_text = parse_tag_text(message, prefix_len=1)
-    members = await MentionService.get_target_members(message.bot, session, message.chat.id, active_only=True)
+    members = await MentionService.get_target_members(
+        message.bot, session, message.chat.id, active_only=True
+    )
 
     if not members:
-        await reply_with_ttl(message, "<i>No active members recorded recently.</i>", ttl_type=TTLType.MODERATION)
+        await reply_with_ttl(
+            message, "<i>No active members recorded recently.</i>", ttl_type=TTLType.MODERATION
+        )
         return
 
     MentionService.start_tagging_task(
@@ -124,12 +128,18 @@ async def handle_reply_tag_all(
     if not session or message.chat.id >= 0:
         return
 
-    target_reply_id = message.reply_to_message.message_id if message.reply_to_message else message.message_id
+    target_reply_id = (
+        message.reply_to_message.message_id if message.reply_to_message else message.message_id
+    )
     custom_text = parse_tag_text(message, prefix_len=1)
-    members = await MentionService.get_target_members(message.bot, session, message.chat.id, active_only=False)
+    members = await MentionService.get_target_members(
+        message.bot, session, message.chat.id, active_only=False
+    )
 
     if not members:
-        await reply_with_ttl(message, "<i>No members found in group record.</i>", ttl_type=TTLType.MODERATION)
+        await reply_with_ttl(
+            message, "<i>No members found in group record.</i>", ttl_type=TTLType.MODERATION
+        )
         return
 
     MentionService.start_tagging_task(
@@ -161,10 +171,14 @@ async def handle_tag_all(
         return
 
     custom_text = parse_tag_text(message, prefix_len=1)
-    members = await MentionService.get_target_members(message.bot, session, message.chat.id, active_only=False)
+    members = await MentionService.get_target_members(
+        message.bot, session, message.chat.id, active_only=False
+    )
 
     if not members:
-        await reply_with_ttl(message, "<i>No members found in group record.</i>", ttl_type=TTLType.MODERATION)
+        await reply_with_ttl(
+            message, "<i>No members found in group record.</i>", ttl_type=TTLType.MODERATION
+        )
         return
 
     # Zero-risk secret emoji tagging is always enforced

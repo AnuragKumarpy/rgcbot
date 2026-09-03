@@ -1,4 +1,5 @@
 from typing import List, Literal, Optional
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,14 +12,21 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Bot API Token
-    bot_token: str = Field(default="1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ")
+    # Bot API Token — no default. Must come from .env (BOT_TOKEN=...).
+    # A hardcoded placeholder here previously meant a missing .env value
+    # would silently start the bot with a fake token instead of failing
+    # with a clear error.
+    bot_token: str
 
     # Mode: polling or webhook
-    bot_mode: Literal["polling", "webhook"] = Field(default="polling")
+    bot_mode: Literal["polling", "webhook"] = Field(default="webhook")
 
     # Webhook server configuration
-    webhook_host: str = Field(default="https://yourdomain.com")
+    # webhook_host has no default either — the ngrok URL baked in here
+    # previously meant a production deploy with a missing .env value would
+    # silently try to register a webhook against a dead ngrok tunnel
+    # instead of erroring immediately. Only used when bot_mode="webhook".
+    webhook_host: str = Field(default="")
     webhook_path: str = Field(default="/webhook")
     webhook_secret: Optional[str] = Field(default=None)
     server_host: str = Field(default="0.0.0.0")
@@ -40,21 +48,32 @@ class Settings(BaseSettings):
             return [int(x) for x in v if str(x).isdigit() or isinstance(x, int)]
         return v or []
 
+    @field_validator("webhook_host")
+    @classmethod
+    def require_webhook_host_in_webhook_mode(cls, v, info):
+        # bot_mode may not be validated yet depending on field order, so
+        # re-check against the raw input data rather than self.bot_mode.
+        mode = info.data.get("bot_mode", "webhook")
+        if mode == "webhook" and not v:
+            raise ValueError(
+                "WEBHOOK_HOST must be set in .env when BOT_MODE=webhook "
+                "(e.g. WEBHOOK_HOST=https://bot.yourdomain.com)"
+            )
+        return v
 
-    # PostgreSQL Database
-    database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/rgcbot"
-    )
+    # PostgreSQL Database — no default. Must come from .env (DATABASE_URL=...).
+    database_url: str
     db_echo: bool = Field(default=False)
     db_pool_size: int = Field(default=20)
     db_max_overflow: int = Field(default=10)
 
-    # Redis
-    redis_url: str = Field(default="redis://localhost:6379/0")
+    # Redis — no default. Must come from .env (REDIS_URL=...).
+    redis_url: str
     redis_ttl_queue_key: str = Field(default="rgcbot:ttl:queue")
     redis_rate_limit_prefix: str = Field(default="rgcbot:ratelimit:")
 
-    # Auto-Delete TTL Defaults (seconds)
+    # Auto-Delete TTL Defaults (seconds) — safe to keep as defaults, these
+    # are tunable behavior, not environment-specific secrets/endpoints.
     default_mod_ttl: int = Field(default=15)
     default_fun_ttl: int = Field(default=30)
     default_rules_ttl: int = Field(default=45)

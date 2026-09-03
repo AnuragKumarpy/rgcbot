@@ -2,7 +2,9 @@ import re
 from datetime import timedelta
 from typing import Optional
 
-TIME_REGEX = re.compile(r"(\d+)\s*([smhdw]|sec|second|min|minute|hr|hour|d|day|w|week)s?", re.IGNORECASE)
+TIME_REGEX = re.compile(
+    r"(\d+)\s*([smhdw]|sec|second|min|minute|hr|hour|d|day|w|week)s?", re.IGNORECASE
+)
 
 MULTIPLIERS = {
     "s": 1,

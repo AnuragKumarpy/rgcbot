@@ -22,9 +22,7 @@ class ModerationService:
         username: Optional[str] = None,
     ) -> User:
         """Ensures a user record exists in the users table to prevent FK violations."""
-        result = await session.execute(
-            select(User).where(User.user_id == user_id)
-        )
+        result = await session.execute(select(User).where(User.user_id == user_id))
         user = result.scalar_one_or_none()
         if not user:
             user = User(
@@ -49,9 +47,7 @@ class ModerationService:
         title: str = "Group",
     ) -> Group:
         """Ensures a group record exists in the groups table to prevent FK violations."""
-        result = await session.execute(
-            select(Group).where(Group.chat_id == chat_id)
-        )
+        result = await session.execute(select(Group).where(Group.chat_id == chat_id))
         group = result.scalar_one_or_none()
         if not group:
             group = Group(chat_id=chat_id, title=title, is_active=True)
@@ -100,10 +96,14 @@ class ModerationService:
         action_type = ActionType.BAN
         duration_str = None
 
+
         if duration_seconds and duration_seconds > 0:
             until_date = datetime.utcnow() + timedelta(seconds=duration_seconds)
             action_type = ActionType.TEMPBAN
             duration_str = format_duration(duration_seconds)
+
+        if target_user.user_id == is_super_admin():
+            return False  # Prevent self-ban
 
         # Telegram API Call
         await bot.ban_chat_member(
@@ -117,7 +117,7 @@ class ModerationService:
         await cls.ensure_user(
             session, target_user.user_id, target_user.first_name, target_user.username
         )
-        if admin_user:
+        if admin_user or is_super_admin():
             await cls.ensure_user(
                 session, admin_user.user_id, admin_user.first_name, admin_user.username
             )
@@ -252,7 +252,9 @@ class ModerationService:
             can_invite_users=False,
             can_pin_messages=False,
         )
-
+        if target_user.user_id == is_super_admin():
+            return False  # Prevent self-mute
+            
         await bot.restrict_chat_member(
             chat_id=group.chat_id,
             user_id=target_user.user_id,
@@ -436,6 +438,7 @@ class ModerationService:
         Increments warning count. If max warns reached, executes escalation action.
         Returns: (current_warns, max_warns, escalation_action_taken_or_None)
         """
+
         await cls.ensure_user(
             session, target_user.user_id, target_user.first_name, target_user.username
         )
@@ -452,6 +455,9 @@ class ModerationService:
             target_user.username,
             group.title,
         )
+        if member == is_super_user():
+            return 0, group.max_warns, None  # No action for super admins
+
         member.warnings_count += 1
         current_warns = member.warnings_count
         max_warns = group.max_warns
@@ -464,19 +470,31 @@ class ModerationService:
             if group.warn_action == WarnAction.BAN.value:
                 escalated_action = "banned"
                 await cls.ban_user(
-                    bot, session, group, target_user, admin_user,
-                    reason=f"Exceeded max warnings ({max_warns}/{max_warns}) - {reason or 'No reason'}"
+                    bot,
+                    session,
+                    group,
+                    target_user,
+                    admin_user,
+                    reason=f"Exceeded max warnings ({max_warns}/{max_warns}) - {reason or 'No reason'}",
                 )
             elif group.warn_action == WarnAction.KICK.value:
                 escalated_action = "kicked"
                 await cls.kick_user(
-                    bot, session, group, target_user, admin_user,
-                    reason=f"Exceeded max warnings ({max_warns}/{max_warns}) - {reason or 'No reason'}"
+                    bot,
+                    session,
+                    group,
+                    target_user,
+                    admin_user,
+                    reason=f"Exceeded max warnings ({max_warns}/{max_warns}) - {reason or 'No reason'}",
                 )
             else:  # Mute default
                 escalated_action = f"muted for {format_duration(group.warn_duration_sec)}"
                 await cls.mute_user(
-                    bot, session, group, target_user, admin_user,
+                    bot,
+                    session,
+                    group,
+                    target_user,
+                    admin_user,
                     reason=f"Exceeded max warnings ({max_warns}/{max_warns}) - {reason or 'No reason'}",
                     duration_seconds=group.warn_duration_sec,
                 )

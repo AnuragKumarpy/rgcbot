@@ -8,8 +8,12 @@ class GroupMember(Base):
     __tablename__ = "group_members"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("groups.chat_id", ondelete="CASCADE"), index=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), index=True)
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("groups.chat_id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"), index=True
+    )
 
     warnings_count: Mapped[int] = mapped_column(Integer, default=0)
     is_muted: Mapped[bool] = mapped_column(Boolean, default=False)

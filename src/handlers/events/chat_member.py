@@ -56,6 +56,7 @@ async def handle_new_members(
             # Skip in-group captcha, send welcome directly
             if db_group and db_group.welcome_enabled:
                 from src.services.welcome_service import WelcomeService
+
                 await WelcomeService.send_welcome(message.bot, db_group, new_user)
             continue
 
@@ -68,6 +69,7 @@ async def handle_new_members(
             )
         elif db_group and db_group.welcome_enabled:
             from src.services.welcome_service import WelcomeService
+
             await WelcomeService.send_welcome(message.bot, db_group, new_user)
 
     # Delete the service message "User joined the group" to keep chat clean if enabled
@@ -114,6 +116,7 @@ async def handle_chat_member_joined(
         # Skip in-group captcha, send welcome directly
         if db_group.welcome_enabled:
             from src.services.welcome_service import WelcomeService
+
             await WelcomeService.send_welcome(event.bot, db_group, new_user)
         return
 
@@ -126,6 +129,7 @@ async def handle_chat_member_joined(
         )
     elif db_group.welcome_enabled:
         from src.services.welcome_service import WelcomeService
+
         await WelcomeService.send_welcome(event.bot, db_group, new_user)
 
 
@@ -205,4 +209,6 @@ async def handle_captcha_callback(
             )
             await call.answer("✅ Correct answer! Welcome!")
         else:
-            await call.answer("❌ Incorrect answer! Please try again before time expires.", show_alert=True)
+            await call.answer(
+                "❌ Incorrect answer! Please try again before time expires.", show_alert=True
+            )

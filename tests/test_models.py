@@ -5,7 +5,13 @@ from src.models.member import GroupMember
 
 
 def test_model_instantiation():
-    group = Group(chat_id=-100123456789, title="Test Group", is_active=True, welcome_enabled=True, captcha_mode="button")
+    group = Group(
+        chat_id=-100123456789,
+        title="Test Group",
+        is_active=True,
+        welcome_enabled=True,
+        captcha_mode="button",
+    )
     assert group.chat_id == -100123456789
     assert group.welcome_enabled is True
     assert group.captcha_mode == "button"
@@ -20,4 +26,3 @@ def test_model_instantiation():
 
     member = GroupMember(chat_id=group.chat_id, user_id=user.user_id, warnings_count=2)
     assert member.warnings_count == 2
-

@@ -74,7 +74,9 @@ async def handle_lock_cmd(
     norm = LocksService.normalize_lock_type(target_type)
     if not norm:
         await reply_with_ttl(
-            message, f"❌ Invalid lock type: <code>{target_type}</code>", ttl_type=TTLType.MODERATION
+            message,
+            f"❌ Invalid lock type: <code>{target_type}</code>",
+            ttl_type=TTLType.MODERATION,
         )
         return
 
@@ -84,7 +86,9 @@ async def handle_lock_cmd(
     label = "ALL media/content" if norm == "all" else norm.capitalize()
     await reply_with_ttl(
         message,
-        animate_text(f"{E_LOCK} <b>Locked:</b> <code>{label}</code> is now restricted for regular members."),
+        animate_text(
+            f"{E_LOCK} <b>Locked:</b> <code>{label}</code> is now restricted for regular members."
+        ),
         ttl_type=TTLType.MODERATION,
     )
 
@@ -116,7 +120,9 @@ async def handle_unlock_cmd(
     norm = LocksService.normalize_lock_type(target_type)
     if not norm:
         await reply_with_ttl(
-            message, f"❌ Invalid lock type: <code>{target_type}</code>", ttl_type=TTLType.MODERATION
+            message,
+            f"❌ Invalid lock type: <code>{target_type}</code>",
+            ttl_type=TTLType.MODERATION,
         )
         return
 
@@ -126,7 +132,9 @@ async def handle_unlock_cmd(
     label = "ALL media/content" if norm == "all" else norm.capitalize()
     await reply_with_ttl(
         message,
-        animate_text(f"{E_CHECK} <b>Unlocked:</b> <code>{label}</code> is now allowed for regular members."),
+        animate_text(
+            f"{E_CHECK} <b>Unlocked:</b> <code>{label}</code> is now allowed for regular members."
+        ),
         ttl_type=TTLType.MODERATION,
     )
 
@@ -195,7 +203,11 @@ async def handle_antichannel_cmd(
         db_group.antichannel_enabled = not db_group.antichannel_enabled
 
     await session.commit()
-    status = f"ENABLED ({db_group.antichannel_mode or 'del'}) 🟢" if db_group.antichannel_enabled else "DISABLED 🔴"
+    status = (
+        f"ENABLED ({db_group.antichannel_mode or 'del'}) 🟢"
+        if db_group.antichannel_enabled
+        else "DISABLED 🔴"
+    )
     await reply_with_ttl(
         message,
         animate_text(

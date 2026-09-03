@@ -17,6 +17,9 @@ class User(Base):
     coins: Mapped[int] = mapped_column(Integer, default=100)
     daily_streak: Mapped[int] = mapped_column(Integer, default=0)
     last_daily_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    games_played: Mapped[int] = mapped_column(Integer, default=0)
+    games_won: Mapped[int] = mapped_column(Integer, default=0)
+    game_score: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
     # Customization & Flairs
     custom_title: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -34,4 +37,10 @@ class User(Base):
     )
 
     # Relationships
-    group_memberships = relationship("GroupMember", back_populates="user", cascade="all, delete-orphan")
+    group_memberships = relationship(
+        "GroupMember", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip() if self.last_name else self.first_name

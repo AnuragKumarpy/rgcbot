@@ -61,6 +61,7 @@ def get_karma_tier(karma: int) -> str:
 def format_card(title: str, fields: list[tuple[str, str]], footer: Optional[str] = None) -> str:
     """Formats a structured, elite monospace card layout with animated custom emojis."""
     from src.utils.emojis import animate_text
+
     lines = [f"<b>{animate_text(title)}</b>\n"]
     for label, val in fields:
         lines.append(f"• <b>{animate_text(str(label))}:</b> {animate_text(str(val))}")

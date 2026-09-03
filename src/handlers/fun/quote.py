@@ -48,9 +48,7 @@ async def handle_quote(
     quote_messages: List[QuoteMessageData] = []
 
     # Fetch avatar for primary user
-    avatar_img = await QuoteService.fetch_user_avatar(
-        message.bot, target_msg.from_user.id
-    )
+    avatar_img = await QuoteService.fetch_user_avatar(message.bot, target_msg.from_user.id)
 
     primary_text = target_msg.text or target_msg.caption or "[Media / Sticker]"
     reply_author = None
@@ -62,9 +60,7 @@ async def handle_quote(
             or f"User {target_msg.reply_to_message.from_user.id}"
         )
         reply_snippet = (
-            target_msg.reply_to_message.text
-            or target_msg.reply_to_message.caption
-            or "[Media]"
+            target_msg.reply_to_message.text or target_msg.reply_to_message.caption or "[Media]"
         )[:50]
 
     primary_data = QuoteMessageData(

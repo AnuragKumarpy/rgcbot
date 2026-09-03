@@ -12,6 +12,7 @@ from src.core.database import db
 from src.core.logging import setup_logging
 from src.core.redis import redis_manager
 from src.handlers import admin_router, common_router, events_router, fun_router
+from src.middlewares.activity_tracker import ActivityTrackerMiddleware
 from src.middlewares.auth import AuthMiddleware
 from src.middlewares.command_logger import CommandLoggerMiddleware
 from src.middlewares.database import DatabaseMiddleware
@@ -72,8 +73,8 @@ def setup_dispatcher(dp: Dispatcher) -> Dispatcher:
     dp.update.outer_middleware(AuthMiddleware())
 
     # 2. Command Logger Middleware
+    dp.message.outer_middleware(ActivityTrackerMiddleware())
     dp.message.outer_middleware(CommandLoggerMiddleware())
-
     # 3. Register Inner Middlewares on message / callback level
     dp.message.middleware(RateLimitMiddleware(limit_per_second=0.7))
     dp.callback_query.middleware(RateLimitMiddleware(limit_per_second=0.5))

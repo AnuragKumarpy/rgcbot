@@ -95,7 +95,9 @@ class TTLSweeperWorker:
                             except TelegramRetryAfter as e:
                                 await asyncio.sleep(e.retry_after)
                     except TelegramRetryAfter as e:
-                        logger.warning(f"Rate limited during batch delete: retry after {e.retry_after}s")
+                        logger.warning(
+                            f"Rate limited during batch delete: retry after {e.retry_after}s"
+                        )
                         await asyncio.sleep(e.retry_after)
 
             except Exception as e:

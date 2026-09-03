@@ -137,7 +137,9 @@ class QuoteColorTheme:
     }
 
     @classmethod
-    def get_theme(cls, color_key: str) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int, int]]:
+    def get_theme(
+        cls, color_key: str
+    ) -> Dict[str, Tuple[int, int, int, int] | Tuple[int, int, int]]:
         key = color_key.lower().strip()
         if key in ("yellow",):
             key = "gold"
@@ -171,7 +173,12 @@ class QuoteColorTheme:
                 "name": (r, g, b),
                 "reply_bar": (r, g, b),
                 "reply_name": (min(255, r + 40), min(255, g + 40), min(255, b + 40)),
-                "reply_bg": (max(15, int(r * 0.25)), max(15, int(g * 0.25)), max(20, int(b * 0.25)), 180),
+                "reply_bg": (
+                    max(15, int(r * 0.25)),
+                    max(15, int(g * 0.25)),
+                    max(20, int(b * 0.25)),
+                    180,
+                ),
                 "text": (245, 247, 250),
                 "time": (150, 155, 175),
                 "avatar_ring": (r, g, b),
@@ -202,10 +209,16 @@ class QuoteService:
             "Roboto-Bold.ttf" if bold else "Roboto-Regular.ttf",
             "Arial Bold.ttf" if bold else "Arial.ttf",
             "Helvetica-Bold.ttf" if bold else "Helvetica.ttf",
-            "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Arial.ttf",
             "/System/Library/Fonts/Helvetica.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" if bold else "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
         ]
         for name in font_names:
             try:
@@ -237,15 +250,29 @@ class QuoteService:
             return False
         code = ord(char)
         return (
-            0x1F300 <= code <= 0x1FAFF or
-            0x2600 <= code <= 0x27BF or
-            0xFE00 <= code <= 0xFE0F or
-            0x1F900 <= code <= 0x1F9FF or
-            0x1F600 <= code <= 0x1F64F or
-            0x1F680 <= code <= 0x1F6FF or
-            0x2300 <= code <= 0x23FF or
-            0x2B50 <= code <= 0x2B55 or
-            code in (0x200D, 0x2764, 0x2B50, 0x2705, 0x274C, 0x2728, 0x1F44D, 0x1F44E, 0x1F31F, 0x1F48E, 0x1F451, 0x1F525)
+            0x1F300 <= code <= 0x1FAFF
+            or 0x2600 <= code <= 0x27BF
+            or 0xFE00 <= code <= 0xFE0F
+            or 0x1F900 <= code <= 0x1F9FF
+            or 0x1F600 <= code <= 0x1F64F
+            or 0x1F680 <= code <= 0x1F6FF
+            or 0x2300 <= code <= 0x23FF
+            or 0x2B50 <= code <= 0x2B55
+            or code
+            in (
+                0x200D,
+                0x2764,
+                0x2B50,
+                0x2705,
+                0x274C,
+                0x2728,
+                0x1F44D,
+                0x1F44E,
+                0x1F31F,
+                0x1F48E,
+                0x1F451,
+                0x1F525,
+            )
         )
 
     @staticmethod
@@ -280,7 +307,7 @@ class QuoteService:
         for seg, is_em in QuoteService.segment_text_emojis(text):
             font = font_emoji if is_em else font_text
             bbox = draw.textbbox((0, 0), seg, font=font)
-            total_w += (bbox[2] - bbox[0])
+            total_w += bbox[2] - bbox[0]
             max_h = max(max_h, bbox[3] - bbox[1])
         return total_w, max_h
 
@@ -299,7 +326,7 @@ class QuoteService:
             font = font_emoji if is_em else font_text
             bbox = draw.textbbox((curr_x, y), seg, font=font)
             draw.text((curr_x, y), seg, fill=fill_color, font=font)
-            curr_x += (bbox[2] - bbox[0])
+            curr_x += bbox[2] - bbox[0]
         return curr_x
 
     @classmethod
@@ -329,7 +356,9 @@ class QuoteService:
         canvas_size = size * scale
 
         if avatar_img:
-            avatar = avatar_img.convert("RGBA").resize((canvas_size, canvas_size), Image.Resampling.LANCZOS)
+            avatar = avatar_img.convert("RGBA").resize(
+                (canvas_size, canvas_size), Image.Resampling.LANCZOS
+            )
         else:
             avatar = Image.new("RGBA", (canvas_size, canvas_size), (45, 50, 70, 255))
             d = ImageDraw.Draw(avatar)
@@ -337,7 +366,7 @@ class QuoteService:
             initial = (clean_name[0] if clean_name else "?").upper()
             font = QuoteService._get_font(canvas_size // 2, bold=True)
             font_emoji = QuoteService._get_emoji_font(canvas_size // 2)
-            
+
             w, h = QuoteService.get_composite_text_bbox(d, initial, font, font_emoji)
             QuoteService.draw_composite_text(
                 d,
@@ -362,7 +391,12 @@ class QuoteService:
         ring = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
         d_ring = ImageDraw.Draw(ring)
         d_ring.ellipse(
-            (border_w // 2, border_w // 2, canvas_size - border_w // 2 - 1, canvas_size - border_w // 2 - 1),
+            (
+                border_w // 2,
+                border_w // 2,
+                canvas_size - border_w // 2 - 1,
+                canvas_size - border_w // 2 - 1,
+            ),
             outline=(*ring_color, 255),
             width=border_w,
         )
@@ -382,7 +416,11 @@ class QuoteService:
                 include_reply = True
             elif clean.isdigit() and 1 <= int(clean) <= 5:
                 count = int(clean)
-            elif clean in QuoteColorTheme.THEMES or re.match(r"^#?[0-9a-fA-F]{6}$", clean) or clean in ("yellow", "violet", "rose", "emerald", "amber", "crimson"):
+            elif (
+                clean in QuoteColorTheme.THEMES
+                or re.match(r"^#?[0-9a-fA-F]{6}$", clean)
+                or clean in ("yellow", "violet", "rose", "emerald", "amber", "crimson")
+            ):
                 color = clean
 
         return color, include_reply, count
@@ -421,12 +459,16 @@ class QuoteService:
             logger.debug(f"Redis message caching note: {e}")
 
     @classmethod
-    async def get_sequential_messages(cls, chat_id: int, start_msg_id: int, count: int) -> List[QuoteMessageData]:
+    async def get_sequential_messages(
+        cls, chat_id: int, start_msg_id: int, count: int
+    ) -> List[QuoteMessageData]:
         messages: List[QuoteMessageData] = []
         try:
             redis = await redis_manager.get_client()
             key = f"rgcbot:chat_msgs:{chat_id}"
-            raw_items = await redis.zrangebyscore(key, min=start_msg_id, max="+inf", start=0, num=count)
+            raw_items = await redis.zrangebyscore(
+                key, min=start_msg_id, max="+inf", start=0, num=count
+            )
             for item in raw_items:
                 data = json.loads(item)
                 messages.append(
@@ -487,7 +529,9 @@ class QuoteService:
                 current_line = words[0]
                 for w in words[1:]:
                     test_line = current_line + " " + w
-                    w_box, _ = cls.get_composite_text_bbox(dummy_draw, test_line, font_text, font_text_emoji)
+                    w_box, _ = cls.get_composite_text_bbox(
+                        dummy_draw, test_line, font_text, font_text_emoji
+                    )
                     if w_box <= max_w:
                         current_line = test_line
                     else:
@@ -511,7 +555,9 @@ class QuoteService:
 
         # Header width
         clean_first_name = cls.clean_emoji_text(first_msg.first_name)
-        name_w, _ = cls.get_composite_text_bbox(dummy_draw, clean_first_name, font_name, font_name_emoji)
+        name_w, _ = cls.get_composite_text_bbox(
+            dummy_draw, clean_first_name, font_name, font_name_emoji
+        )
         time_bbox = dummy_draw.textbbox((0, 0), first_msg.date_str, font=font_time)
         header_w = name_w + (time_bbox[2] - time_bbox[0]) + 30 * SCALE
         max_content_w = max(max_content_w, header_w)
@@ -522,8 +568,12 @@ class QuoteService:
         if has_reply_header:
             clean_reply_user = cls.clean_emoji_text(first_msg.reply_user_name or "User")
             clean_reply_snippet = cls.clean_emoji_text(first_msg.reply_text or "")
-            r_name_w, _ = cls.get_composite_text_bbox(dummy_draw, clean_reply_user, font_reply_name, font_reply_name_emoji)
-            r_text_w, _ = cls.get_composite_text_bbox(dummy_draw, clean_reply_snippet, font_reply_text, font_reply_text_emoji)
+            r_name_w, _ = cls.get_composite_text_bbox(
+                dummy_draw, clean_reply_user, font_reply_name, font_reply_name_emoji
+            )
+            r_text_w, _ = cls.get_composite_text_bbox(
+                dummy_draw, clean_reply_snippet, font_reply_text, font_reply_text_emoji
+            )
             reply_w = max(r_name_w, r_text_w) + 20 * SCALE
             max_content_w = max(max_content_w, reply_w)
             reply_h = 44 * SCALE
@@ -568,9 +618,19 @@ class QuoteService:
         curr_y = bubble_y + PAD_Y
 
         # 3. Header: User Name & Timestamp
-        cls.draw_composite_text(draw, bubble_x + PAD_X, curr_y, clean_first_name, font_name, font_name_emoji, theme["name"])
+        cls.draw_composite_text(
+            draw,
+            bubble_x + PAD_X,
+            curr_y,
+            clean_first_name,
+            font_name,
+            font_name_emoji,
+            theme["name"],
+        )
         time_x = bubble_x + bubble_w - PAD_X - (time_bbox[2] - time_bbox[0])
-        draw.text((time_x, curr_y + 4 * SCALE), first_msg.date_str, fill=theme["time"], font=font_time)
+        draw.text(
+            (time_x, curr_y + 4 * SCALE), first_msg.date_str, fill=theme["time"], font=font_time
+        )
         curr_y += 28 * SCALE
 
         # 4. Reply Bar

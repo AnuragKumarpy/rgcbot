@@ -96,9 +96,7 @@ class KarmaService:
 
     @classmethod
     async def get_top_karma(cls, session: AsyncSession, limit: int = 10) -> List[User]:
-        result = await session.execute(
-            select(User).order_by(desc(User.karma)).limit(limit)
-        )
+        result = await session.execute(select(User).order_by(desc(User.karma)).limit(limit))
         return list(result.scalars().all())
 
     @classmethod
@@ -114,8 +112,6 @@ class KarmaService:
             name = user.first_name or f"User {user.user_id}"
             mention = mention_html(user.user_id, name)
             tier = get_karma_tier(user.karma)
-            lines.append(
-                f"{marker} #{i+1} {mention} — <b>{user.karma} pts</b> <i>({tier})</i>"
-            )
+            lines.append(f"{marker} #{i + 1} {mention} — <b>{user.karma} pts</b> <i>({tier})</i>")
 
         return "\n".join(lines)

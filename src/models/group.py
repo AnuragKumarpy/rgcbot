@@ -19,7 +19,9 @@ class Group(Base):
         Text,
         default="✨ Welcome {mention} to <b>{chat_title}</b> 💎\nPlease review the group rules and enjoy your stay!",
     )
-    welcome_media_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # photo, video, animation
+    welcome_media_type: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )  # photo, video, animation
     welcome_media_file_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     welcome_buttons: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Button text | url
 
@@ -35,14 +37,16 @@ class Group(Base):
 
     english_only_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     tos_shield_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # Warn settings
     max_warns: Mapped[int] = mapped_column(Integer, default=3)
     warn_action: Mapped[str] = mapped_column(String(32), default="mute")  # mute, kick, ban
     warn_duration_sec: Mapped[int] = mapped_column(Integer, default=3600)  # 1 hour default
 
     # Locks, CleanService & Anti-Channel
-    locked_types: Mapped[Optional[str]] = mapped_column(Text, default="")  # comma-separated locked types
+    locked_types: Mapped[Optional[str]] = mapped_column(
+        Text, default=""
+    )  # comma-separated locked types
     clean_service_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     antichannel_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     antichannel_mode: Mapped[str] = mapped_column(String(16), default="del")  # del, ban
@@ -51,7 +55,6 @@ class Group(Base):
     night_mode_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     night_mode_start: Mapped[str] = mapped_column(String(5), default="00:00")
     night_mode_end: Mapped[str] = mapped_column(String(5), default="06:00")
-
 
     # Logging Channel
     log_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
@@ -68,7 +71,13 @@ class Group(Base):
 
     # Relationships
     members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
-    moderation_logs = relationship("ModerationLog", back_populates="group", cascade="all, delete-orphan")
+    moderation_logs = relationship(
+        "ModerationLog", back_populates="group", cascade="all, delete-orphan"
+    )
     filters = relationship("GroupFilter", back_populates="group", cascade="all, delete-orphan")
-    blocklist_terms = relationship("BlocklistTerm", back_populates="group", cascade="all, delete-orphan")
-    ttl_settings = relationship("TTLSettings", back_populates="group", uselist=False, cascade="all, delete-orphan")
+    blocklist_terms = relationship(
+        "BlocklistTerm", back_populates="group", cascade="all, delete-orphan"
+    )
+    ttl_settings = relationship(
+        "TTLSettings", back_populates="group", uselist=False, cascade="all, delete-orphan"
+    )

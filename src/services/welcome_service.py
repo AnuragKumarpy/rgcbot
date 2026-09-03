@@ -28,6 +28,7 @@ class WelcomeService:
     @classmethod
     def format_welcome_text(cls, template: str, user: TgUser, group: Group) -> str:
         from src.utils.emojis import animate_text
+
         mention = get_user_mention(user)
         text = template.replace("{mention}", mention)
         text = text.replace("{name}", user.first_name or "Member")
@@ -35,7 +36,6 @@ class WelcomeService:
         text = text.replace("{id}", str(user.id))
         text = text.replace("{chat_title}", group.title)
         return animate_text(text)
-
 
     @classmethod
     async def send_welcome(

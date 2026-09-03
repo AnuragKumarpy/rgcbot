@@ -135,9 +135,7 @@ async def handle_pin(message: Message, can_pin: bool = False):
             ttl_type=TTLType.MODERATION,
         )
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to pin message: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to pin message: {e}", ttl_type=TTLType.MODERATION)
 
 
 @router.message(Command("unpin"))
@@ -157,12 +155,16 @@ async def handle_unpin(message: Message, can_pin: bool = False):
                 message_id=message.reply_to_message.message_id,
             )
             await reply_with_ttl(
-                message, "📌 <b>Message Unpinned:</b> Replied message was unpinned.", ttl_type=TTLType.MODERATION
+                message,
+                "📌 <b>Message Unpinned:</b> Replied message was unpinned.",
+                ttl_type=TTLType.MODERATION,
             )
         else:
             await message.bot.unpin_chat_message(chat_id=message.chat.id)
             await reply_with_ttl(
-                message, "📌 <b>Message Unpinned:</b> Latest pinned message was unpinned.", ttl_type=TTLType.MODERATION
+                message,
+                "📌 <b>Message Unpinned:</b> Latest pinned message was unpinned.",
+                ttl_type=TTLType.MODERATION,
             )
     except Exception as e:
         await reply_with_ttl(
@@ -183,7 +185,9 @@ async def handle_unpinall(message: Message, can_pin: bool = False):
     try:
         await message.bot.unpin_all_chat_messages(chat_id=message.chat.id)
         await reply_with_ttl(
-            message, "📌 <b>All Pinned Messages Cleared:</b> All pinned messages have been unpinned.", ttl_type=TTLType.MODERATION
+            message,
+            "📌 <b>All Pinned Messages Cleared:</b> All pinned messages have been unpinned.",
+            ttl_type=TTLType.MODERATION,
         )
     except Exception as e:
         await reply_with_ttl(

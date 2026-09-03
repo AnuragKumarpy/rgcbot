@@ -42,9 +42,7 @@ async def handle_karma_award(
     if not target_tg_user or target_tg_user.is_bot:
         return
 
-    res = await session.execute(
-        select(User).where(User.user_id == target_tg_user.id)
-    )
+    res = await session.execute(select(User).where(User.user_id == target_tg_user.id))
     target_user = res.scalar_one_or_none()
     if not target_user:
         target_user = User(
@@ -108,9 +106,7 @@ async def handle_get_karma(
 
     if message.reply_to_message and message.reply_to_message.from_user:
         target_tg_user = message.reply_to_message.from_user
-        res = await session.execute(
-            select(User).where(User.user_id == target_tg_user.id)
-        )
+        res = await session.execute(select(User).where(User.user_id == target_tg_user.id))
         target_user = res.scalar_one_or_none()
         if not target_user:
             target_user = User(
@@ -149,9 +145,7 @@ async def handle_daily(
     if not session or not db_user or not message.from_user:
         return
 
-    success, message_text, streak, coins_awarded = (
-        await KarmaService.claim_daily(session, db_user)
-    )
+    success, message_text, streak, coins_awarded = await KarmaService.claim_daily(session, db_user)
     mention = get_user_mention(message.from_user)
 
     if success:
@@ -183,14 +177,14 @@ async def handle_top_karma(
     if not session:
         return
 
-    res = await session.execute(
-        select(User).order_by(desc(User.karma)).limit(10)
-    )
+    res = await session.execute(select(User).order_by(desc(User.karma)).limit(10))
     top_users = res.scalars().all()
 
     if not top_users:
         await reply_with_ttl(
-            message, f"{E_DIAMOND} <i>No reputation leaderboard records yet.</i>", ttl_type=TTLType.FUN
+            message,
+            f"{E_DIAMOND} <i>No reputation leaderboard records yet.</i>",
+            ttl_type=TTLType.FUN,
         )
         return
 

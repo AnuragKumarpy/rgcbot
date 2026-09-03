@@ -1,7 +1,13 @@
 from unittest.mock import AsyncMock, MagicMock
 import pytest
 from src.keyboards.help_kb import get_help_back_keyboard, get_help_main_keyboard
-from src.models.federation import Federation, FederationAdmin, FederationBan, FederationGroup, generate_fed_id
+from src.models.federation import (
+    Federation,
+    FederationAdmin,
+    FederationBan,
+    FederationGroup,
+    generate_fed_id,
+)
 from src.services.federation_service import FederationService
 
 

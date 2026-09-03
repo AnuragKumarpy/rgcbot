@@ -37,9 +37,7 @@ from src.utils.text_formatter import escape_html, format_card
 router = Router(name="admin_settings")
 
 
-async def get_group_and_ttl(
-    session: AsyncSession, chat_id: int
-) -> tuple[Group, TTLSettings]:
+async def get_group_and_ttl(session: AsyncSession, chat_id: int) -> tuple[Group, TTLSettings]:
     res_g = await session.execute(select(Group).where(Group.chat_id == chat_id))
     group = res_g.scalar_one_or_none()
     if not group:
@@ -47,9 +45,7 @@ async def get_group_and_ttl(
         session.add(group)
         await session.flush()
 
-    res_t = await session.execute(
-        select(TTLSettings).where(TTLSettings.chat_id == chat_id)
-    )
+    res_t = await session.execute(select(TTLSettings).where(TTLSettings.chat_id == chat_id))
     ttl = res_t.scalar_one_or_none()
     if not ttl:
         ttl = TTLSettings(chat_id=chat_id)
@@ -147,8 +143,12 @@ async def handle_set_welcome(
     # Check if replied to media
     if message.reply_to_message:
         replied = message.reply_to_message
-        caption_text = message.text.split(maxsplit=1)[1] if len(message.text.split(maxsplit=1)) > 1 else (replied.caption or db_group.welcome_text)
-        
+        caption_text = (
+            message.text.split(maxsplit=1)[1]
+            if len(message.text.split(maxsplit=1)) > 1
+            else (replied.caption or db_group.welcome_text)
+        )
+
         if replied.photo:
             db_group.welcome_media_type = "photo"
             db_group.welcome_media_file_id = replied.photo[-1].file_id
@@ -231,7 +231,12 @@ async def handle_settings_callback(
     user_id = call.from_user.id if call.from_user else 0
     is_super = is_super_admin(user_id)
 
-    if not is_admin and not is_super and call.message and call.message.chat.type != ChatType.PRIVATE:
+    if (
+        not is_admin
+        and not is_super
+        and call.message
+        and call.message.chat.type != ChatType.PRIVATE
+    ):
         await call.answer("❌ Only group administrators can alter settings.", show_alert=True)
         return
 
@@ -270,6 +275,7 @@ async def handle_settings_callback(
         if call.from_user:
             from src.core.enums import ActionType
             from src.services.audit_service import AuditService
+
             await AuditService.log_action(
                 bot=call.bot,
                 chat_id=chat_id,
@@ -291,7 +297,9 @@ async def handle_settings_callback(
             group.captcha_mode = modes[(curr_idx + 1) % len(modes)]
             await session.commit()
             if call.message:
-                await call.message.edit_reply_markup(reply_markup=get_settings_main_menu(group, ttl))
+                await call.message.edit_reply_markup(
+                    reply_markup=get_settings_main_menu(group, ttl)
+                )
             await call.answer(f"Captcha mode: {group.captcha_mode.upper()}")
         elif target == "warn_action":
             actions = [WarnAction.MUTE.value, WarnAction.KICK.value, WarnAction.BAN.value]
@@ -311,7 +319,9 @@ async def handle_settings_callback(
                     f"Chat: <b>{escape_html(group.title)}</b> [<code>{group.chat_id}</code>]\n"
                     f"Use the buttons below to toggle security modules and configure auto-deletion timers."
                 )
-                await call.message.edit_text(text=text, reply_markup=get_settings_main_menu(group, ttl), parse_mode="HTML")
+                await call.message.edit_text(
+                    text=text, reply_markup=get_settings_main_menu(group, ttl), parse_mode="HTML"
+                )
         elif submenu == "ttl":
             if call.message:
                 await call.message.edit_reply_markup(reply_markup=get_ttl_menu(group, ttl))

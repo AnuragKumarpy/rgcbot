@@ -116,9 +116,7 @@ async def handle_list_filters(
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
 
-    res = await session.execute(
-        select(GroupFilter).where(GroupFilter.chat_id == db_group.chat_id)
-    )
+    res = await session.execute(select(GroupFilter).where(GroupFilter.chat_id == db_group.chat_id))
     filters = res.scalars().all()
     if not filters:
         await reply_with_ttl(
@@ -132,9 +130,7 @@ async def handle_list_filters(
     for f in filters:
         lines.append(f"• <code>{escape_html(f.keyword)}</code>")
 
-    await reply_with_ttl(
-        message, "\n".join(lines), ttl_type=TTLType.RULES, custom_ttl=45
-    )
+    await reply_with_ttl(message, "\n".join(lines), ttl_type=TTLType.RULES, custom_ttl=45)
 
 
 # Passive keyword filter matcher
@@ -148,9 +144,7 @@ async def handle_filter_trigger(
         return
 
     text_lower = message.text.lower()
-    res = await session.execute(
-        select(GroupFilter).where(GroupFilter.chat_id == db_group.chat_id)
-    )
+    res = await session.execute(select(GroupFilter).where(GroupFilter.chat_id == db_group.chat_id))
     filters = res.scalars().all()
 
     for flt in filters:

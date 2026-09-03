@@ -72,7 +72,9 @@ class MemberSyncService:
 
                 # 2. Upsert GroupMember
                 gm_res = await session.execute(
-                    select(GroupMember).where(GroupMember.chat_id == chat_id, GroupMember.user_id == p.id)
+                    select(GroupMember).where(
+                        GroupMember.chat_id == chat_id, GroupMember.user_id == p.id
+                    )
                 )
                 db_gm = gm_res.scalars().first()
                 if not db_gm:
@@ -123,7 +125,9 @@ class MemberSyncService:
                     session.add(db_u)
 
                 gm_res = await session.execute(
-                    select(GroupMember).where(GroupMember.chat_id == chat_id, GroupMember.user_id == u.id)
+                    select(GroupMember).where(
+                        GroupMember.chat_id == chat_id, GroupMember.user_id == u.id
+                    )
                 )
                 if not gm_res.scalars().first():
                     session.add(

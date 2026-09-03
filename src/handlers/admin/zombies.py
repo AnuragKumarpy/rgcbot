@@ -37,7 +37,9 @@ async def handle_zombies_command(
 
     # Check bot permissions
     try:
-        bot_member = await message.bot.get_chat_member(chat_id=db_group.chat_id, user_id=message.bot.id)
+        bot_member = await message.bot.get_chat_member(
+            chat_id=db_group.chat_id, user_id=message.bot.id
+        )
         if not check_can_restrict(bot_member, message.bot.id):
             await reply_with_ttl(
                 message,
@@ -53,7 +55,9 @@ async def handle_zombies_command(
 
     # Immediate clean if "/zombies clean" or "/cleanzombies"
     if action in ("clean", "purge", "kick") or "clean" in parts[0] or "kick" in parts[0]:
-        status_msg = await message.answer(f"{E_SEARCH} <b>Scanning and purging deleted accounts...</b>", parse_mode="HTML")
+        status_msg = await message.answer(
+            f"{E_SEARCH} <b>Scanning and purging deleted accounts...</b>", parse_mode="HTML"
+        )
         cleaned, total = await ZombieCleanerService.clean_zombies(
             bot=message.bot,
             session=session,
@@ -78,7 +82,9 @@ async def handle_zombies_command(
         return
 
     # Dry-run scan
-    status_msg = await message.answer(f"{E_SEARCH} <b>Scanning group for deleted accounts...</b>", parse_mode="HTML")
+    status_msg = await message.answer(
+        f"{E_SEARCH} <b>Scanning group for deleted accounts...</b>", parse_mode="HTML"
+    )
     zombie_ids = await ZombieCleanerService.scan_zombies(
         bot=message.bot,
         session=session,
@@ -142,6 +148,7 @@ async def handle_zombies_clean_callback(
     admin_id = int(parts[3]) if len(parts) > 3 else 0
 
     from src.utils.permissions import is_super_admin
+
     if admin_id and call.from_user.id != admin_id and not is_super_admin(call.from_user.id):
         await call.answer("❌ Only the admin who initiated the scan can confirm.", show_alert=True)
         return
@@ -155,7 +162,9 @@ async def handle_zombies_clean_callback(
     if not group:
         group = Group(chat_id=chat_id, title=call.message.chat.title or "Group")
 
-    await call.message.edit_text(f"{E_SEARCH} <b>Purging deleted accounts...</b>", parse_mode="HTML")
+    await call.message.edit_text(
+        f"{E_SEARCH} <b>Purging deleted accounts...</b>", parse_mode="HTML"
+    )
     cleaned, total = await ZombieCleanerService.clean_zombies(
         bot=call.bot,
         session=session,
@@ -185,6 +194,7 @@ async def handle_zombies_cancel_callback(call: CallbackQuery):
     admin_id = int(parts[-1]) if len(parts) > 2 else 0
 
     from src.utils.permissions import is_super_admin
+
     if admin_id and call.from_user.id != admin_id and not is_super_admin(call.from_user.id):
         await call.answer("❌ Only the admin who initiated the scan can cancel.", show_alert=True)
         return
@@ -194,4 +204,3 @@ async def handle_zombies_cancel_callback(call: CallbackQuery):
     except Exception:
         pass
     await call.answer("Cancelled.")
-

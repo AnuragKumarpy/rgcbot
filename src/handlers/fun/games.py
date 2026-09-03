@@ -62,8 +62,13 @@ async def handle_russian_roulette(
 async def handle_dice(
     message: Message,
     db_group: Optional[Group] = None,
+    db_user: Optional[User] = None,
+    session: Optional[AsyncSession] = None,
 ):
     dice_msg = await message.answer_dice(emoji="🎲")
+    _desc, reward = GamesService.evaluate_dice_score("🎲", dice_msg.dice.value)
+    if session and db_user:
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=reward > 0)
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
@@ -72,8 +77,13 @@ async def handle_dice(
 async def handle_darts(
     message: Message,
     db_group: Optional[Group] = None,
+    db_user: Optional[User] = None,
+    session: Optional[AsyncSession] = None,
 ):
     dice_msg = await message.answer_dice(emoji="🎯")
+    _desc, reward = GamesService.evaluate_dice_score("🎯", dice_msg.dice.value)
+    if session and db_user:
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=reward > 0)
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
@@ -90,8 +100,8 @@ async def handle_slots(
     desc, reward = GamesService.evaluate_dice_score("🎰", value)
     if db_user and reward > 0 and session:
         db_user.coins += reward
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=True)
         await session.commit()
-
         # Log jackpot / slot win
         if db_group:
             user_name = message.from_user.full_name if message.from_user else "User"
@@ -105,28 +115,51 @@ async def handle_slots(
                 reason=f"Slots Reward: {desc} (+{reward} coins)",
                 channel_id=db_group.log_channel_id,
             )
+    elif db_user and session:
+        await GamesService.record_game_result(session, db_user, score_delta=0, won=False)
 
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
 
 @router.message(Command("basketball"))
-async def handle_basketball(message: Message):
+async def handle_basketball(
+    message: Message,
+    db_user: Optional[User] = None,
+    session: Optional[AsyncSession] = None,
+):
     dice_msg = await message.answer_dice(emoji="🏀")
+    _desc, reward = GamesService.evaluate_dice_score("🏀", dice_msg.dice.value)
+    if session and db_user:
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=reward > 0)
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
 
 @router.message(Command("football"))
-async def handle_football(message: Message):
+async def handle_football(
+    message: Message,
+    db_user: Optional[User] = None,
+    session: Optional[AsyncSession] = None,
+):
     dice_msg = await message.answer_dice(emoji="⚽")
+    _desc, reward = GamesService.evaluate_dice_score("⚽", dice_msg.dice.value)
+    if session and db_user:
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=reward > 0)
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
 
 @router.message(Command("bowling"))
-async def handle_bowling(message: Message):
+async def handle_bowling(
+    message: Message,
+    db_user: Optional[User] = None,
+    session: Optional[AsyncSession] = None,
+):
     dice_msg = await message.answer_dice(emoji="🎳")
+    _desc, reward = GamesService.evaluate_dice_score("🎳", dice_msg.dice.value)
+    if session and db_user:
+        await GamesService.record_game_result(session, db_user, score_delta=reward, won=reward > 0)
     await schedule_auto_delete(message.chat.id, dice_msg.message_id, ttl_seconds=30)
     await schedule_auto_delete(message.chat.id, message.message_id, ttl_seconds=30)
 
@@ -150,9 +183,7 @@ async def handle_duel(
 
     opponent_tg = message.reply_to_message.from_user
     if opponent_tg.id == message.from_user.id or opponent_tg.is_bot:
-        await reply_with_ttl(
-            message, "❌ You cannot duel yourself or bots!", ttl_type=TTLType.FUN
-        )
+        await reply_with_ttl(message, "❌ You cannot duel yourself or bots!", ttl_type=TTLType.FUN)
         return
 
     # Parse bet amount
@@ -183,9 +214,7 @@ async def handle_duel(
         opponent_id=opponent_tg.id,
         amount=amount,
     )
-    await reply_with_ttl(
-        message, text, ttl_type=TTLType.FUN, reply_markup=kb, custom_ttl=60
-    )
+    await reply_with_ttl(message, text, ttl_type=TTLType.FUN, reply_markup=kb, custom_ttl=60)
 
 
 @router.callback_query(F.data.startswith("duel:"))
@@ -213,14 +242,10 @@ async def handle_duel_callback(
         return
 
     # Fetch challenger & opponent users from DB
-    res_c = await session.execute(
-        select(User).where(User.user_id == challenger_id)
-    )
+    res_c = await session.execute(select(User).where(User.user_id == challenger_id))
     challenger = res_c.scalar_one_or_none()
 
-    res_o = await session.execute(
-        select(User).where(User.user_id == opponent_id)
-    )
+    res_o = await session.execute(select(User).where(User.user_id == opponent_id))
     opponent = res_o.scalar_one_or_none()
 
     if not challenger or not opponent:
@@ -231,7 +256,9 @@ async def handle_duel_callback(
         await call.message.edit_text("❌ One of the players no longer has enough coins.")
         return
 
-    await call.message.edit_text(f"{E_LIGHTNING} <b>Rolling dice for the duel...</b>", parse_mode="HTML")
+    await call.message.edit_text(
+        f"{E_LIGHTNING} <b>Rolling dice for the duel...</b>", parse_mode="HTML"
+    )
 
     # Challenger roll
     c_dice = await call.message.answer_dice(emoji="🎲")
@@ -251,6 +278,8 @@ async def handle_duel_callback(
         challenger.coins += amount
         opponent.coins -= amount
         winner_name = challenger.first_name
+        await GamesService.record_game_result(session, challenger, score_delta=amount, won=True)
+        await GamesService.record_game_result(session, opponent, score_delta=0, won=False)
         res_text = (
             f"{E_TOP} {c_mention} (🎲 {c_score}) defeated {o_mention} (🎲 {o_score})!\n"
             f"{E_DIAMOND} Won <b>+{amount} coins</b>!"
@@ -259,12 +288,16 @@ async def handle_duel_callback(
         opponent.coins += amount
         challenger.coins -= amount
         winner_name = opponent.first_name
+        await GamesService.record_game_result(session, challenger, score_delta=0, won=False)
+        await GamesService.record_game_result(session, opponent, score_delta=amount, won=True)
         res_text = (
             f"{E_TOP} {o_mention} (🎲 {o_score}) defeated {c_mention} (🎲 {c_score})!\n"
             f"{E_DIAMOND} Won <b>+{amount} coins</b>!"
         )
     else:
         res_text = f"🤝 It's a draw! Both rolled 🎲 {c_score}. Coins returned."
+        await GamesService.record_game_result(session, challenger, score_delta=0, won=False)
+        await GamesService.record_game_result(session, opponent, score_delta=0, won=False)
 
     await session.commit()
     sent_res = await call.message.answer(res_text, parse_mode="HTML")

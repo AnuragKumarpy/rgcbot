@@ -138,9 +138,13 @@ async def handle_blocklist_command(
 
     lines = [f"{E_NOTE} <b>Active Group Blocklist Terms:</b>\n"]
     for t in terms:
-        lines.append(f"• <code>{escape_html(t.term)}</code> — Action: <code>{t.action.upper()}</code>")
+        lines.append(
+            f"• <code>{escape_html(t.term)}</code> — Action: <code>{t.action.upper()}</code>"
+        )
 
-    lines.append("\n<i>Manage via: <code>/blocklist add &lt;term&gt; [action]</code> or <code>/blocklist remove &lt;term&gt;</code></i>")
+    lines.append(
+        "\n<i>Manage via: <code>/blocklist add &lt;term&gt; [action]</code> or <code>/blocklist remove &lt;term&gt;</code></i>"
+    )
     await reply_with_ttl(message, "\n".join(lines), ttl_type=TTLType.MODERATION, custom_ttl=45)
 
 
@@ -191,6 +195,7 @@ async def handle_tos_toggle_callback(
         return
 
     from src.utils.permissions import is_super_admin
+
     is_super = is_super_admin(call.from_user.id)
     if not is_admin and not is_super:
         await call.answer("❌ Only administrators can toggle the TOS shield.", show_alert=True)

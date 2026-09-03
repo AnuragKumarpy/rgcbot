@@ -148,7 +148,11 @@ class BroadcastService:
                 sent_msg = await source_message.copy_to(chat_id=chat_id)
                 if pin and sent_msg and hasattr(sent_msg, "message_id"):
                     try:
-                        await bot.pin_chat_message(chat_id=chat_id, message_id=sent_msg.message_id, disable_notification=True)
+                        await bot.pin_chat_message(
+                            chat_id=chat_id,
+                            message_id=sent_msg.message_id,
+                            disable_notification=True,
+                        )
                     except Exception:
                         pass
                 success_count += 1

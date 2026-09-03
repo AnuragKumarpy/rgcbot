@@ -144,15 +144,13 @@ class CaptchaService:
         # Send welcome message with TTL
         if group.welcome_enabled:
             from src.services.welcome_service import WelcomeService
+
             try:
                 cm = await bot.get_chat_member(group.chat_id, user_id)
                 tg_user = cm.user
             except Exception:
                 tg_user = TgUser(id=user_id, is_bot=False, first_name="Member")
             await WelcomeService.send_welcome(bot, group, tg_user)
-
-
-
 
     @classmethod
     async def _timeout_checker(

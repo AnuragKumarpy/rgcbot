@@ -8,6 +8,7 @@ from src.models.log import ModerationLog
 from src.models.member import GroupMember
 from src.models.note import AdminNote
 from src.models.quote import Quote
+from src.models.profile_change import UserProfileChange
 from src.models.ttl import TTLSettings
 from src.models.user import User
 
@@ -16,6 +17,7 @@ __all__ = [
     "User",
     "GroupMember",
     "ModerationLog",
+    "UserProfileChange",
     "GroupFilter",
     "TTLSettings",
     "BlocklistTerm",
@@ -28,6 +30,3 @@ __all__ = [
     "FederationGroup",
     "FederationBan",
 ]
-
-
-

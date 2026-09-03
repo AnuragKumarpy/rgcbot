@@ -25,10 +25,12 @@ class ShipImageService:
         return None
 
     @staticmethod
-    def _create_circular_avatar(avatar_img: Image.Image, size: int, border_color: Tuple[int, int, int] = (255, 105, 180)) -> Image.Image:
+    def _create_circular_avatar(
+        avatar_img: Image.Image, size: int, border_color: Tuple[int, int, int] = (255, 105, 180)
+    ) -> Image.Image:
         """Crops an image into a circle with an antialiased glowing border."""
         avatar = avatar_img.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
-        
+
         # High-res mask for antialiasing
         scale = 4
         mask_size = (size * scale, size * scale)
@@ -36,33 +38,39 @@ class ShipImageService:
         draw = ImageDraw.Draw(mask)
         draw.ellipse((0, 0, mask_size[0] - 1, mask_size[1] - 1), fill=255)
         mask = mask.resize((size, size), Image.Resampling.LANCZOS)
-        
+
         circular_avatar = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         circular_avatar.paste(avatar, (0, 0), mask=mask)
-        
+
         # Border ring
         border_thickness = 4
-        ring = Image.new("RGBA", (size + border_thickness * 2, size + border_thickness * 2), (0, 0, 0, 0))
+        ring = Image.new(
+            "RGBA", (size + border_thickness * 2, size + border_thickness * 2), (0, 0, 0, 0)
+        )
         ring_draw = ImageDraw.Draw(ring)
         ring_draw.ellipse(
             (0, 0, size + border_thickness * 2 - 1, size + border_thickness * 2 - 1),
             outline=(*border_color, 255),
             width=border_thickness,
         )
-        
+
         # Compose
-        res = Image.new("RGBA", (size + border_thickness * 2, size + border_thickness * 2), (0, 0, 0, 0))
+        res = Image.new(
+            "RGBA", (size + border_thickness * 2, size + border_thickness * 2), (0, 0, 0, 0)
+        )
         res.paste(circular_avatar, (border_thickness, border_thickness), mask=mask)
         res.alpha_composite(ring)
         return res
 
     @staticmethod
-    def _create_fallback_avatar(name: str, size: int, bg_color: Tuple[int, int, int] = (180, 40, 100)) -> Image.Image:
+    def _create_fallback_avatar(
+        name: str, size: int, bg_color: Tuple[int, int, int] = (180, 40, 100)
+    ) -> Image.Image:
         """Generates a stylish initial-based avatar if user has no PFP."""
         img = Image.new("RGB", (size, size), bg_color)
         draw = ImageDraw.Draw(img)
         initial = (name[0] if name else "?").upper()
-        
+
         try:
             font = ImageFont.truetype("DejaVuSans-Bold.ttf", size // 2)
         except Exception:
@@ -70,7 +78,7 @@ class ShipImageService:
                 font = ImageFont.truetype("arial.ttf", size // 2)
             except Exception:
                 font = ImageFont.load_default()
-            
+
         bbox = draw.textbbox((0, 0), initial, font=font)
         w = bbox[2] - bbox[0]
         h = bbox[3] - bbox[1]
@@ -95,7 +103,7 @@ class ShipImageService:
         # 1. Base Gradient Canvas (Deep midnight purple to vivid romantic magenta)
         base = Image.new("RGBA", (W, H), (0, 0, 0, 255))
         draw = ImageDraw.Draw(base)
-        
+
         for y in range(H):
             ratio = y / H
             # Smooth vertical gradient: Top (#1C081F) to Center (#4A0E38) to Bottom (#1C081F)
@@ -144,8 +152,16 @@ class ShipImageService:
 
         # 5. Prepare Avatars
         av_size = 170
-        pfp1 = user1_img if user1_img else cls._create_fallback_avatar(user1_name, av_size, (190, 45, 110))
-        pfp2 = user2_img if user2_img else cls._create_fallback_avatar(user2_name, av_size, (140, 35, 160))
+        pfp1 = (
+            user1_img
+            if user1_img
+            else cls._create_fallback_avatar(user1_name, av_size, (190, 45, 110))
+        )
+        pfp2 = (
+            user2_img
+            if user2_img
+            else cls._create_fallback_avatar(user2_name, av_size, (140, 35, 160))
+        )
 
         av1_circ = cls._create_circular_avatar(pfp1, av_size, (255, 105, 180))
         av2_circ = cls._create_circular_avatar(pfp2, av_size, (255, 105, 180))
@@ -158,11 +174,21 @@ class ShipImageService:
         s_draw = ImageDraw.Draw(shadow_layer)
         s_offset = 6
         s_draw.ellipse(
-            (av1_x + s_offset, av1_y + s_offset, av1_x + av1_circ.width + s_offset, av1_y + av1_circ.height + s_offset),
+            (
+                av1_x + s_offset,
+                av1_y + s_offset,
+                av1_x + av1_circ.width + s_offset,
+                av1_y + av1_circ.height + s_offset,
+            ),
             fill=(0, 0, 0, 110),
         )
         s_draw.ellipse(
-            (av2_x + s_offset, av2_y + s_offset, av2_x + av2_circ.width + s_offset, av2_y + av2_circ.height + s_offset),
+            (
+                av2_x + s_offset,
+                av2_y + s_offset,
+                av2_x + av2_circ.width + s_offset,
+                av2_y + av2_circ.height + s_offset,
+            ),
             fill=(0, 0, 0, 110),
         )
         base = Image.alpha_composite(base, shadow_layer)
@@ -177,7 +203,7 @@ class ShipImageService:
         # Draw smooth polygon heart in center
         hx, hy = W // 2, 225
         h_size = 75
-        
+
         # High quality heart curve points
         points = []
         for t in [i * 0.05 for i in range(0, 126)]:
@@ -216,29 +242,51 @@ class ShipImageService:
         # Title at Top
         title_text = "✦ MATCHMAKING RADAR ✦"
         t_box = t_draw.textbbox((0, 0), title_text, font=font_title)
-        t_draw.text(((W - (t_box[2] - t_box[0])) // 2, 45), title_text, fill=(255, 200, 225, 240), font=font_title)
+        t_draw.text(
+            ((W - (t_box[2] - t_box[0])) // 2, 45),
+            title_text,
+            fill=(255, 200, 225, 240),
+            font=font_title,
+        )
 
         # Percentage Text inside Heart
         pct_text = f"{percentage}%"
         p_box = t_draw.textbbox((0, 0), pct_text, font=font_pct)
         pw = p_box[2] - p_box[0]
         ph = p_box[3] - p_box[1]
-        t_draw.text(((W - pw) // 2 + 2, hy - (ph // 2) - 8 + 2), pct_text, fill=(80, 0, 30, 200), font=font_pct)
-        t_draw.text(((W - pw) // 2, hy - (ph // 2) - 8), pct_text, fill=(255, 255, 255, 255), font=font_pct)
+        t_draw.text(
+            ((W - pw) // 2 + 2, hy - (ph // 2) - 8 + 2),
+            pct_text,
+            fill=(80, 0, 30, 200),
+            font=font_pct,
+        )
+        t_draw.text(
+            ((W - pw) // 2, hy - (ph // 2) - 8), pct_text, fill=(255, 255, 255, 255), font=font_pct
+        )
 
         # User 1 Name below left avatar
         u1_name = user1_name[:14]
         u1_box = t_draw.textbbox((0, 0), u1_name, font=font_names)
         u1_w = u1_box[2] - u1_box[0]
         u1_center = av1_x + (av1_circ.width // 2)
-        t_draw.text((u1_center - (u1_w // 2), av1_y + av1_circ.height + 15), u1_name, fill=(255, 240, 250, 255), font=font_names)
+        t_draw.text(
+            (u1_center - (u1_w // 2), av1_y + av1_circ.height + 15),
+            u1_name,
+            fill=(255, 240, 250, 255),
+            font=font_names,
+        )
 
         # User 2 Name below right avatar
         u2_name = user2_name[:14]
         u2_box = t_draw.textbbox((0, 0), u2_name, font=font_names)
         u2_w = u2_box[2] - u2_box[0]
         u2_center = av2_x + (av2_circ.width // 2)
-        t_draw.text((u2_center - (u2_w // 2), av2_y + av2_circ.height + 15), u2_name, fill=(255, 240, 250, 255), font=font_names)
+        t_draw.text(
+            (u2_center - (u2_w // 2), av2_y + av2_circ.height + 15),
+            u2_name,
+            fill=(255, 240, 250, 255),
+            font=font_names,
+        )
 
         # Ship Tag & Progress Bar at bottom
         ship_tag = f"💖 {ship_name}"
@@ -255,7 +303,7 @@ class ShipImageService:
             verdict = "Sweet Spark • Growing Friendship"
         else:
             verdict = "Complex Dynamic • Opposites Attract"
-            
+
         v_box = t_draw.textbbox((0, 0), verdict, font=font_sub)
         v_w = v_box[2] - v_box[0]
         t_draw.text(((W - v_w) // 2, H - 55), verdict, fill=(240, 190, 220, 200), font=font_sub)

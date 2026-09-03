@@ -31,7 +31,9 @@ async def reply_with_ttl(
     ttl_type: TTLType = TTLType.GENERAL,
     custom_ttl: Optional[int] = None,
     delete_trigger: bool = True,
-    reply_markup: Optional[Union[InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove]] = None,
+    reply_markup: Optional[
+        Union[InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove]
+    ] = None,
     parse_mode: Optional[str] = "HTML",
 ) -> Optional[Message]:
     """
@@ -56,6 +58,7 @@ async def reply_with_ttl(
 
     try:
         from src.utils.emojis import animate_text
+
         animated_text = animate_text(text)
         try:
             sent_msg = await message.answer(
@@ -69,7 +72,6 @@ async def reply_with_ttl(
                 reply_markup=reply_markup,
                 parse_mode=None,
             )
-
 
         if ttl_seconds and ttl_seconds > 0:
             # Schedule bot message for deletion
@@ -123,6 +125,7 @@ async def reply_photo_with_ttl(
 
     try:
         from src.utils.emojis import animate_text
+
         animated_caption = animate_text(caption)
         sent_msg = await message.reply_photo(
             photo=photo,
@@ -148,4 +151,3 @@ async def reply_photo_with_ttl(
     except Exception as e:
         logger.error(f"Failed to send photo reply with TTL: {e}")
         return None
-

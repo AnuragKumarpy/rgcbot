@@ -25,7 +25,11 @@ async def handle_report_trigger(
     # Extract reason
     raw = message.text or message.caption or ""
     parts = raw.split(maxsplit=1)
-    reason = parts[1].strip() if len(parts) > 1 and not parts[1].startswith("@") else "Rule violation reported by member"
+    reason = (
+        parts[1].strip()
+        if len(parts) > 1 and not parts[1].startswith("@")
+        else "Rule violation reported by member"
+    )
 
     reporter = message.from_user
     if not reporter:
@@ -65,7 +69,9 @@ async def handle_report_action_callback(
             await call.bot.ban_chat_member(chat_id=chat_id, user_id=target_id)
             await call.answer("🔨 User has been banned from the group!", show_alert=True)
             if call.message:
-                await call.message.reply(f"✅ Action executed: User <code>{target_id}</code> banned by admin.")
+                await call.message.reply(
+                    f"✅ Action executed: User <code>{target_id}</code> banned by admin."
+                )
 
         elif action == "mute":
             until_date = datetime.utcnow() + timedelta(hours=24)
@@ -77,14 +83,18 @@ async def handle_report_action_callback(
             )
             await call.answer("🔇 User has been muted for 24 hours!", show_alert=True)
             if call.message:
-                await call.message.reply(f"✅ Action executed: User <code>{target_id}</code> muted for 24h.")
+                await call.message.reply(
+                    f"✅ Action executed: User <code>{target_id}</code> muted for 24h."
+                )
 
         elif action == "del":
             msg_id = target_id
             await call.bot.delete_message(chat_id=chat_id, message_id=msg_id)
             await call.answer("🗑 Message deleted!", show_alert=True)
             if call.message:
-                await call.message.reply(f"✅ Action executed: Message <code>{msg_id}</code> deleted.")
+                await call.message.reply(
+                    f"✅ Action executed: Message <code>{msg_id}</code> deleted."
+                )
 
         if call.message:
             await call.message.edit_reply_markup(reply_markup=None)

@@ -57,9 +57,7 @@ async def resolve_target(
         # Auto-upsert into DB if session provided
         if session:
             try:
-                res = await session.execute(
-                    select(User).where(User.user_id == target_tg.id)
-                )
+                res = await session.execute(select(User).where(User.user_id == target_tg.id))
                 db_u = res.scalar_one_or_none()
                 if not db_u:
                     session.add(
@@ -102,9 +100,7 @@ async def resolve_target(
 
             if session:
                 try:
-                    res = await session.execute(
-                        select(User).where(User.user_id == u.id)
-                    )
+                    res = await session.execute(select(User).where(User.user_id == u.id))
                     db_u = res.scalar_one_or_none()
                     if not db_u:
                         session.add(
@@ -162,9 +158,7 @@ async def resolve_target(
             # Check if first token could be a known username in DB without '@'
             clean_uname = first_tok.lstrip("@").lower()
             if session:
-                res = await session.execute(
-                    select(User).where(User.username.ilike(clean_uname))
-                )
+                res = await session.execute(select(User).where(User.username.ilike(clean_uname)))
                 db_u = res.scalar_one_or_none()
                 if db_u:
                     target_idx = 0
@@ -175,9 +169,7 @@ async def resolve_target(
     # If target is by username, resolve from DB first, then fallback to Palantir MTProto
     if target_username and target_id is None:
         if session:
-            res = await session.execute(
-                select(User).where(User.username.ilike(target_username))
-            )
+            res = await session.execute(select(User).where(User.username.ilike(target_username)))
             db_u = res.scalar_one_or_none()
             if db_u:
                 target_id = db_u.user_id
@@ -188,6 +180,7 @@ async def resolve_target(
         if target_id is None:
             try:
                 from src.services.mtproto_resolver import MTProtoResolver
+
                 mt_res = await MTProtoResolver.resolve_username(target_username)
                 if mt_res:
                     target_id, target_name, target_username = mt_res
@@ -220,9 +213,7 @@ async def resolve_target(
     # If target is by numerical ID, check DB for rich name/username
     if target_id is not None:
         if session and (not target_name or target_name.startswith("User ")):
-            res = await session.execute(
-                select(User).where(User.user_id == target_id)
-            )
+            res = await session.execute(select(User).where(User.user_id == target_id))
             db_u = res.scalar_one_or_none()
             if db_u:
                 target_name = db_u.first_name or f"User {target_id}"

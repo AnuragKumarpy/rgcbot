@@ -29,9 +29,7 @@ async def handle_profile(
 
     if message.reply_to_message and message.reply_to_message.from_user:
         target_tg_user = message.reply_to_message.from_user
-        res = await session.execute(
-            select(User).where(User.user_id == target_tg_user.id)
-        )
+        res = await session.execute(select(User).where(User.user_id == target_tg_user.id))
         target_user = res.scalar_one_or_none() or db_user
 
     if not target_user:

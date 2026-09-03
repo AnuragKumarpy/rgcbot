@@ -44,11 +44,19 @@ from src.utils.emojis import (
     animate_text,
 )
 from src.utils.permissions import is_super_admin
-from src.utils.text_formatter import escape_html, format_card, get_karma_tier, get_user_mention, mention_html
+from src.utils.text_formatter import (
+    escape_html,
+    format_card,
+    get_karma_tier,
+    get_user_mention,
+    mention_html,
+)
 
 router = Router(name="common_start")
 
-POWERED_BY_FOOTER = '⚡ <b>Powered by ELITE Bot</b> <a href="https://t.me/EliteBotsTelegram">@EliteBotsTelegram</a>'
+POWERED_BY_FOOTER = (
+    '⚡ <b>Powered by ELITE Bot</b> <a href="https://t.me/EliteBotsTelegram">@EliteBotsTelegram</a>'
+)
 
 
 async def get_network_metrics(session: AsyncSession):
@@ -90,10 +98,14 @@ async def handle_start(
             try:
                 target_chat_id = int(args.replace("settings_", ""))
                 if session:
-                    res_g = await session.execute(select(Group).where(Group.chat_id == target_chat_id))
+                    res_g = await session.execute(
+                        select(Group).where(Group.chat_id == target_chat_id)
+                    )
                     group = res_g.scalars().first()
                     if group:
-                        res_t = await session.execute(select(TTLSettings).where(TTLSettings.chat_id == target_chat_id))
+                        res_t = await session.execute(
+                            select(TTLSettings).where(TTLSettings.chat_id == target_chat_id)
+                        )
                         ttl = res_t.scalars().first()
                         if not ttl:
                             ttl = TTLSettings(chat_id=target_chat_id)
@@ -131,7 +143,9 @@ async def handle_start(
             f"{POWERED_BY_FOOTER}"
         )
 
-        kb = get_dm_start_keyboard(bot_username=bot_info.username or "RandomGCCorebot", is_super_admin=is_super)
+        kb = get_dm_start_keyboard(
+            bot_username=bot_info.username or "RandomGCCorebot", is_super_admin=is_super
+        )
         await message.answer(text=text, reply_markup=kb, parse_mode="HTML")
     else:
         # Group chat
@@ -169,7 +183,9 @@ async def handle_dm_main_menu(call: CallbackQuery, session: Optional[AsyncSessio
         f"Tap the buttons below to configure your groups, explore commands, or read the User Manual.\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    kb = get_dm_start_keyboard(bot_username=bot_info.username or "RandomGCCorebot", is_super_admin=is_super)
+    kb = get_dm_start_keyboard(
+        bot_username=bot_info.username or "RandomGCCorebot", is_super_admin=is_super
+    )
     await call.message.edit_text(text=text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
@@ -181,6 +197,7 @@ async def handle_help(event: Message | CallbackQuery):
         f"{E_DIAMOND} <b>RGCBot Interactive Command Guide & Help Center</b>\n\n"
         "Select a feature category below to view detailed commands, permissions, and syntax:\n\n"
         f"• 🛡️ <b>Moderation & Defense:</b> Bans, mutes, warnings, panic mode, zombies\n"
+        f"• 📊 <b>History & Appeals:</b> Group stats, user stats, appeals, moderation history\n"
         f"• ⚡ <b>Mass Tagging:</b> Zero-risk secret tags (<code>@all</code>, <code>@allactive</code>, <code>@rall</code>)\n"
         f"• 🌐 <b>Federations:</b> Cross-group shared banlists (<code>/fcreate</code>, <code>/fban</code>)\n"
         f"• 🔒 <b>Content Locks:</b> Granular media, link, and forward restrictions\n"
@@ -199,7 +216,9 @@ async def handle_help(event: Message | CallbackQuery):
         if event.chat.type == ChatType.PRIVATE:
             await event.answer(text=text, reply_markup=kb, parse_mode="HTML")
         else:
-            await reply_with_ttl(event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60)
+            await reply_with_ttl(
+                event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60
+            )
 
 
 @router.callback_query(F.data == "help:defense")
@@ -213,14 +232,17 @@ async def handle_help_defense(call: CallbackQuery):
         f"• <code>/unban &lt;target&gt;</code>, <code>/unmute &lt;target&gt;</code> — Remove restrictions\n"
         f"• <code>/warn &lt;target&gt; [reason]</code> — Issue a warning with auto-escalation (default: 3 warns = mute)\n"
         f"• <code>/warns &lt;target&gt;</code>, <code>/resetwarns &lt;target&gt;</code> — View/reset warnings\n"
+        f"• <code>/history &lt;target&gt;</code> — View bans, mutes, and username changes\n"
         f"• <code>/panic [on|off]</code> — Anti-Raid instant chat lockdown\n"
         f"• <code>/zombies</code> or <code>/cleanzombies</code> — Scan & purge deleted Telegram accounts\n"
         f"• <code>/purge [count]</code>, <code>/del</code> — Bulk delete messages\n"
         f"• <code>/pin [loud]</code>, <code>/unpin</code>, <code>/unpinall</code> — Message pinning utilities\n"
-        f"• <code>/blocklist add &lt;term&gt; [action]</code> — Filter prohibited words\n\n"
+        f"• <code>/blocklist add &lt;term&gt; [action]</code>, <code>/tos on|off</code> — Filter prohibited words and TOS violations\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -237,7 +259,9 @@ async def handle_help_tagging(call: CallbackQuery):
         f"• <code>@admin [reason]</code> or <code>/report</code> — Reports offensive messages to all administrators in private DM with instant jump-link\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -256,7 +280,9 @@ async def handle_help_federation(call: CallbackQuery):
         f"• <code>/fdemote &lt;user&gt;</code> — Remove a Federation Admin\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -274,7 +300,9 @@ async def handle_help_locks(call: CallbackQuery):
         f"<code>stickers</code>, <code>animations</code> (GIFs), <code>photos</code>, <code>videos</code>, <code>audios</code>, <code>voice</code>, <code>documents</code>, <code>contacts</code>, <code>locations</code>, <code>polls</code>, <code>links</code>, <code>forwards</code>, <code>inline_bots</code>, <code>games</code>\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -296,7 +324,9 @@ async def handle_help_reputation(call: CallbackQuery):
         f"• ⚡ <i>Mythic Legend</i> (1,000+ pts)\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -306,13 +336,16 @@ async def handle_help_games(call: CallbackQuery):
         f"🎲 <b>GAMES, FUN & QUOTE MAKER</b>\n\n"
         f"• <code>/ship</code> — Matchmaking compatibility radar between group members with animated graphic card\n"
         f"• <code>/q</code> or <code>/quote</code> — Generate a sleek graphic quote card from any replied message\n"
+        f"• <code>/qrand</code> — Generate a random quote card from recent cached messages\n"
         f"• <code>/roulette</code> — Russian Roulette (1-in-6 chance of 60s temporary mute!)\n"
         f"• <code>/duel &lt;amount&gt;</code> — Challenge another member to a coin duel\n"
-        f"• <code>/dice</code>, <code>/slots</code>, <code>/darts</code>, <code>/bowl</code> — Interactive Telegram mini-games with coin rewards\n"
+        f"• <code>/dice</code>, <code>/slots</code>, <code>/darts</code>, <code>/bowling</code> — Interactive Telegram mini-games with coin rewards\n"
         f"• <code>/stats [today|weekly|monthly|all]</code> — Generate aesthetic chat statistics with group profile color palette\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -328,7 +361,9 @@ async def handle_help_settings(call: CallbackQuery):
         f"• <code>/filter &lt;word&gt; &lt;reply&gt;</code>, <code>/filters</code> — Custom keyword auto-responses\n\n"
         f"{POWERED_BY_FOOTER}"
     )
-    await call.message.edit_text(text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML")
+    await call.message.edit_text(
+        text=text, reply_markup=get_help_back_keyboard(), parse_mode="HTML"
+    )
     await call.answer()
 
 
@@ -357,7 +392,9 @@ async def handle_help_faq(event: Message | CallbackQuery):
         if event.chat.type == ChatType.PRIVATE:
             await event.answer(text=text, reply_markup=kb, parse_mode="HTML")
         else:
-            await reply_with_ttl(event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60)
+            await reply_with_ttl(
+                event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60
+            )
 
 
 @router.callback_query(F.data == "help:manual")
@@ -372,15 +409,19 @@ async def handle_help_manual(event: Message | CallbackQuery):
         f"<b>2. Security & Anti-Spam Setup:</b>\n"
         "• Type <code>/settings</code> to configure CAPTCHA verification mode (Button or Math).\n"
         "• Configure Anti-Flood to automatically mute raid spammers.\n"
-        "• Use <code>/locks</code> to restrict media types for non-admin members.\n\n"
+        "• Use <code>/locks</code>, <code>/lock</code>, and <code>/unlock</code> to restrict media types for non-admin members.\n"
+        "• Toggle <code>/cleanservice</code>, <code>/antichannel</code>, and <code>/tos</code> for chat hygiene.\n\n"
         f"<b>3. Moderation Actions:</b>\n"
         "• Target users by replying to their message, using @username, or numeric Telegram ID.\n"
-        "• Commands: <code>/ban</code>, <code>/tban</code>, <code>/mute</code>, <code>/tmute</code>, <code>/warn</code>, <code>/purge</code>.\n\n"
+        "• Commands: <code>/ban</code>, <code>/tban</code>, <code>/mute</code>, <code>/tmute</code>, <code>/warn</code>, <code>/purge</code>, <code>/history</code>.\n\n"
         f"<b>4. Mass Announcements:</b>\n"
         "• Use <code>@all [text]</code> to notify all members with live progress and ETA.\n"
         "• Use <code>@allactive [text]</code> for ultra-fast active chatter tagging (~15-45s).\n\n"
         f"<b>5. Multi-Group Federation:</b>\n"
         "• Connect all your chats with <code>/fcreate</code> and <code>/fjoin</code> to establish unified ban protection.\n\n"
+        f"<b>6. Super Admin Tools:</b>\n"
+        "• Use <code>/helpadmin</code>, <code>/adminpanel</code>, and <code>/broadcast</code> for global operations.\n"
+        "• Use <code>/syncmembers</code> to refresh the local member cache.\n\n"
         f"{POWERED_BY_FOOTER}"
     )
     kb = get_help_back_keyboard()
@@ -391,7 +432,9 @@ async def handle_help_manual(event: Message | CallbackQuery):
         if event.chat.type == ChatType.PRIVATE:
             await event.answer(text=text, reply_markup=kb, parse_mode="HTML")
         else:
-            await reply_with_ttl(event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60)
+            await reply_with_ttl(
+                event, text, reply_markup=kb, ttl_type=TTLType.RULES, custom_ttl=60
+            )
 
 
 @router.callback_query(F.data == "dm:profile")
@@ -420,7 +463,16 @@ async def handle_dm_profile_callback(call: CallbackQuery, session: Optional[Asyn
         footer=f"Earn coins & karma by being active in supported groups!\n\n{POWERED_BY_FOOTER}",
     )
     kb = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="🔙 Back to Main Menu", callback_data="dm:menu", style="primary", icon_custom_emoji_id="5434144690511290129")]]
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🔙 Back to Main Menu",
+                    callback_data="dm:menu",
+                    style="primary",
+                    icon_custom_emoji_id="5434144690511290129",
+                )
+            ]
+        ]
     )
     await call.message.edit_text(text=animate_text(card), reply_markup=kb, parse_mode="HTML")
     await call.answer()
@@ -467,7 +519,14 @@ async def handle_dm_my_groups(call: CallbackQuery, session: Optional[AsyncSessio
                         icon_custom_emoji_id="5427168083074628963",
                     )
                 ],
-                [InlineKeyboardButton(text="🔙 Back to Main Menu", callback_data="dm:menu", style="primary", icon_custom_emoji_id="5434144690511290129")],
+                [
+                    InlineKeyboardButton(
+                        text="🔙 Back to Main Menu",
+                        callback_data="dm:menu",
+                        style="primary",
+                        icon_custom_emoji_id="5434144690511290129",
+                    )
+                ],
             ]
         )
         await call.message.edit_text(text=text, reply_markup=kb, parse_mode="HTML")
@@ -558,7 +617,9 @@ async def handle_set_rules(
     if len(parts) < 2:
         await reply_with_ttl(
             message,
-            animate_text(f"⚠️ Usage: <code>/setrules &lt;rules text in HTML or plain format&gt;</code>\n\n{POWERED_BY_FOOTER}"),
+            animate_text(
+                f"⚠️ Usage: <code>/setrules &lt;rules text in HTML or plain format&gt;</code>\n\n{POWERED_BY_FOOTER}"
+            ),
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -581,10 +642,14 @@ async def handle_set_rules(
         )
 
     await reply_with_ttl(
-        message, animate_text(f"{E_DIAMOND} Group rules have been updated!\n\n{POWERED_BY_FOOTER}"), ttl_type=TTLType.MODERATION
+        message,
+        animate_text(f"{E_DIAMOND} Group rules have been updated!\n\n{POWERED_BY_FOOTER}"),
+        ttl_type=TTLType.MODERATION,
     )
 
+
 import time
+
 
 @router.message(Command("ping"))
 async def cmd_ping(message: Message):
@@ -598,6 +663,6 @@ async def cmd_ping(message: Message):
             ("Database Engine", "PostgreSQL / Redis"),
             ("Status", "🟢 100% Operational"),
         ],
-        footer=POWERED_BY_FOOTER
+        footer=POWERED_BY_FOOTER,
     )
     await sent.edit_text(card, parse_mode="HTML")

@@ -42,9 +42,10 @@ async def handle_export_settings(
         )
         await reply_with_ttl(message, text, ttl_type=TTLType.MODERATION)
     except Exception as e:
-
         logger.error(f"Failed to export settings: {e}")
-        await reply_with_ttl(message, f"❌ Failed to export settings: {e}", ttl_type=TTLType.MODERATION)
+        await reply_with_ttl(
+            message, f"❌ Failed to export settings: {e}", ttl_type=TTLType.MODERATION
+        )
 
 
 @router.message(Command("importsettings", "applysettings", "restorecfg"))
@@ -95,6 +96,7 @@ async def handle_import_settings(
         )
         await reply_with_ttl(message, text, ttl_type=TTLType.MODERATION)
     except Exception as e:
-
         logger.error(f"Failed to import settings: {e}")
-        await reply_with_ttl(message, f"❌ Failed to import settings: {e}", ttl_type=TTLType.MODERATION)
+        await reply_with_ttl(
+            message, f"❌ Failed to import settings: {e}", ttl_type=TTLType.MODERATION
+        )

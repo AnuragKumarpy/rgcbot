@@ -2,6 +2,7 @@ from aiogram import Router
 from src.handlers.admin.ban_mute import router as ban_mute_router
 from src.handlers.admin.blocklist import router as blocklist_router
 from src.handlers.admin.federation import router as federation_router
+from src.handlers.admin.history import router as history_router
 from src.handlers.admin.locks import router as locks_router
 from src.handlers.admin.notes import router as notes_router
 from src.handlers.admin.purge import router as purge_router
@@ -11,6 +12,8 @@ from src.handlers.admin.superadmin import router as superadmin_router
 from src.handlers.admin.tagging import router as tagging_router
 from src.handlers.admin.warn import router as warn_router
 from src.handlers.admin.zombies import router as zombies_router
+from src.handlers.admin.promote import router as promote_router 
+from src.handlers.admin.approve import router as approve_router
 
 admin_router = Router(name="admin_master")
 admin_router.include_router(ban_mute_router)
@@ -25,8 +28,8 @@ admin_router.include_router(zombies_router)
 admin_router.include_router(blocklist_router)
 admin_router.include_router(notes_router)
 admin_router.include_router(superadmin_router)
-
-
-
+admin_router.include_router(history_router)
+admin_router.include_router(promote_router)
+admin_router.include_router(approve_router)
 
 __all__ = ["admin_router"]

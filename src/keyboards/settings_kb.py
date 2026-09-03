@@ -21,8 +21,11 @@ def get_settings_main_menu(group: Group, ttl: TTLSettings) -> InlineKeyboardMark
     welcome_emoji = "5237699328843200968" if group.welcome_enabled else "5260293700088511294"
     welcome_text = "Welcome: ON" if group.welcome_enabled else "Welcome: OFF"
 
+    trigger_text = "Trigger: ON" if (ttl and ttl.delete_command_trigger) else "Trigger: OFF"
     trigger_style = "success" if (ttl and ttl.delete_command_trigger) else "danger"
-    trigger_emoji = "5237699328843200968" if (ttl and ttl.delete_command_trigger) else "5260293700088511294"
+    trigger_emoji = (
+        "5237699328843200968" if (ttl and ttl.delete_command_trigger) else "5260293700088511294"
+    )
     if group.captcha_mode == "button":
         captcha_style = "success"
         captcha_text = "Captcha: BUTTON"
@@ -79,7 +82,6 @@ def get_settings_main_menu(group: Group, ttl: TTLSettings) -> InlineKeyboardMark
                 icon_custom_emoji_id=trigger_emoji,
             ),
         ],
-
         [
             InlineKeyboardButton(
                 text="Configure TTL Timers",

@@ -14,6 +14,23 @@ from src.utils.text_formatter import get_user_mention, mention_html
 
 class GamesService:
     @classmethod
+    async def record_game_result(
+        cls,
+        session,
+        user: Optional[User],
+        score_delta: int = 0,
+        won: bool = False,
+    ) -> None:
+        if not session or not user:
+            return
+
+        user.games_played += 1
+        if won:
+            user.games_won += 1
+        if score_delta > 0:
+            user.game_score += score_delta
+
+    @classmethod
     async def play_russian_roulette(
         cls,
         bot: Bot,
@@ -27,6 +44,7 @@ class GamesService:
         """
         chamber = random.randint(1, 6)
         user_mention = get_user_mention(message.from_user)
+        user.games_played += 1
 
         if chamber == 1:
             # Bang! Muted for 60 seconds
@@ -53,6 +71,8 @@ class GamesService:
         else:
             # Safe!
             user.coins += 10
+            user.games_won += 1
+            user.game_score += 10
             text = (
                 f"🔫 <i>*Click*</i>\n\n"
                 f"{user_mention} pulls the trigger... and nothing happens!\n"

@@ -18,5 +18,3 @@ fun_router.include_router(quote_router)
 fun_router.include_router(stats_router)
 
 __all__ = ["fun_router"]
-
-

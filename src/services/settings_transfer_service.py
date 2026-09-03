@@ -34,12 +34,19 @@ class SettingsTransferService:
         # 3. Fetch Filters
         fil_res = await session.execute(select(GroupFilter).where(GroupFilter.chat_id == chat_id))
         filters = [
-            {"keyword": f.keyword, "reply_text": f.reply_text, "media_type": f.media_type, "file_id": f.file_id}
+            {
+                "keyword": f.keyword,
+                "reply_text": f.reply_text,
+                "media_type": f.media_type,
+                "file_id": f.file_id,
+            }
             for f in fil_res.scalars().all()
         ]
 
         # 4. Fetch Blocklist
-        blk_res = await session.execute(select(BlocklistTerm).where(BlocklistTerm.chat_id == chat_id))
+        blk_res = await session.execute(
+            select(BlocklistTerm).where(BlocklistTerm.chat_id == chat_id)
+        )
         blocklist = [b.term for b in blk_res.scalars().all()]
 
         payload = {
@@ -108,7 +115,7 @@ class SettingsTransferService:
         """
         clean_code = config_code.strip()
         if clean_code.startswith(cls.CONFIG_PREFIX):
-            clean_code = clean_code[len(cls.CONFIG_PREFIX):]
+            clean_code = clean_code[len(cls.CONFIG_PREFIX) :]
 
         try:
             compressed = base64.urlsafe_b64decode(clean_code)
@@ -185,13 +192,15 @@ class SettingsTransferService:
         if "filters" in data and isinstance(data["filters"], list):
             await session.execute(delete(GroupFilter).where(GroupFilter.chat_id == chat_id))
             for f in data["filters"]:
-                session.add(GroupFilter(
-                    chat_id=chat_id,
-                    keyword=f["keyword"],
-                    reply_text=f.get("reply_text"),
-                    media_type=f.get("media_type"),
-                    file_id=f.get("file_id"),
-                ))
+                session.add(
+                    GroupFilter(
+                        chat_id=chat_id,
+                        keyword=f["keyword"],
+                        reply_text=f.get("reply_text"),
+                        media_type=f.get("media_type"),
+                        file_id=f.get("file_id"),
+                    )
+                )
                 filters_imported += 1
 
         # 4. Import Blocklist
@@ -199,10 +208,12 @@ class SettingsTransferService:
         if "blocklist" in data and isinstance(data["blocklist"], list):
             await session.execute(delete(BlocklistTerm).where(BlocklistTerm.chat_id == chat_id))
             for b in data["blocklist"]:
-                session.add(BlocklistTerm(
-                    chat_id=chat_id,
-                    term=b,
-                ))
+                session.add(
+                    BlocklistTerm(
+                        chat_id=chat_id,
+                        term=b,
+                    )
+                )
                 blocklist_imported += 1
 
         await session.commit()

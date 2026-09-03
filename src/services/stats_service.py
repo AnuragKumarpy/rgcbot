@@ -13,6 +13,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.activity import UserActivity
+from src.models.federation import Federation, FederationBan
+from src.models.group import Group
+from src.models.log import ModerationLog
+from src.models.member import GroupMember
+from src.models.profile_change import UserProfileChange
 from src.models.user import User
 from src.services.quote_service import QuoteService
 
@@ -48,26 +53,32 @@ class StatsService:
 
         today = date.today()
         is_sticker = 1 if message.sticker else 0
-        is_media = 1 if (message.photo or message.video or message.document or message.animation) else 0
+        is_media = (
+            1 if (message.photo or message.video or message.document or message.animation) else 0
+        )
         is_voice = 1 if (message.voice or message.audio or message.video_note) else 0
 
         try:
-            stmt = pg_insert(UserActivity).values(
-                chat_id=chat_id,
-                user_id=user_id,
-                date=today,
-                messages_count=1,
-                stickers_count=is_sticker,
-                media_count=is_media,
-                voice_count=is_voice,
-            ).on_conflict_do_update(
-                constraint="uq_user_chat_activity_date",
-                set_={
-                    "messages_count": UserActivity.messages_count + 1,
-                    "stickers_count": UserActivity.stickers_count + is_sticker,
-                    "media_count": UserActivity.media_count + is_media,
-                    "voice_count": UserActivity.voice_count + is_voice,
-                },
+            stmt = (
+                pg_insert(UserActivity)
+                .values(
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    date=today,
+                    messages_count=1,
+                    stickers_count=is_sticker,
+                    media_count=is_media,
+                    voice_count=is_voice,
+                )
+                .on_conflict_do_update(
+                    constraint="uq_user_chat_activity_date",
+                    set_={
+                        "messages_count": UserActivity.messages_count + 1,
+                        "stickers_count": UserActivity.stickers_count + is_sticker,
+                        "media_count": UserActivity.media_count + is_media,
+                        "voice_count": UserActivity.voice_count + is_voice,
+                    },
+                )
             )
             await session.execute(stmt)
             await session.commit()
@@ -134,15 +145,17 @@ class StatsService:
         top_users: List[Dict[str, Any]] = []
 
         for row in top_res.all():
-            top_users.append({
-                "user_id": row[0],
-                "messages": row[1] or 0,
-                "stickers": row[2] or 0,
-                "media": row[3] or 0,
-                "voice": row[4] or 0,
-                "name": row[5] or f"User {row[0]}",
-                "username": row[6],
-            })
+            top_users.append(
+                {
+                    "user_id": row[0],
+                    "messages": row[1] or 0,
+                    "stickers": row[2] or 0,
+                    "media": row[3] or 0,
+                    "voice": row[4] or 0,
+                    "name": row[5] or f"User {row[0]}",
+                    "username": row[6],
+                }
+            )
 
         return {
             "timeframe": timeframe,
@@ -152,6 +165,258 @@ class StatsService:
             "total_voice": int(tot_voice),
             "active_users": int(active_users),
             "top_users": top_users,
+        }
+
+    @classmethod
+    async def get_user_stats(
+        cls,
+        session: AsyncSession,
+        user_id: int,
+        timeframe: str = "all_time",
+    ) -> Dict[str, Any]:
+        today = date.today()
+        start_date = None
+        if timeframe == "today":
+            start_date = today
+        elif timeframe == "weekly":
+            start_date = today - timedelta(days=7)
+        elif timeframe == "monthly":
+            start_date = today - timedelta(days=30)
+
+        summary_stmt = select(
+            func.coalesce(func.sum(UserActivity.messages_count), 0),
+            func.coalesce(func.sum(UserActivity.stickers_count), 0),
+            func.coalesce(func.sum(UserActivity.media_count), 0),
+            func.coalesce(func.sum(UserActivity.voice_count), 0),
+            func.count(func.distinct(UserActivity.chat_id)),
+        ).where(UserActivity.user_id == user_id)
+
+        if start_date:
+            summary_stmt = summary_stmt.where(UserActivity.date >= start_date)
+
+        summary_res = await session.execute(summary_stmt)
+        tot_msg, tot_stick, tot_med, tot_voice, active_chats = summary_res.one()
+
+        top_chats_stmt = (
+            select(
+                UserActivity.chat_id,
+                Group.title,
+                func.sum(UserActivity.messages_count).label("total_msgs"),
+                func.sum(UserActivity.stickers_count).label("total_stickers"),
+                func.sum(UserActivity.media_count).label("total_media"),
+                func.sum(UserActivity.voice_count).label("total_voice"),
+            )
+            .outerjoin(Group, Group.chat_id == UserActivity.chat_id)
+            .where(UserActivity.user_id == user_id)
+            .group_by(UserActivity.chat_id, Group.title)
+            .order_by(func.sum(UserActivity.messages_count).desc())
+            .limit(10)
+        )
+
+        if start_date:
+            top_chats_stmt = top_chats_stmt.where(UserActivity.date >= start_date)
+
+        top_chats_res = await session.execute(top_chats_stmt)
+        top_chats: List[Dict[str, Any]] = []
+        for row in top_chats_res.all():
+            top_chats.append(
+                {
+                    "chat_id": row[0],
+                    "title": row[1] or f"Chat {row[0]}",
+                    "messages": row[2] or 0,
+                    "stickers": row[3] or 0,
+                    "media": row[4] or 0,
+                    "voice": row[5] or 0,
+                }
+            )
+
+        user_res = await session.execute(select(User).where(User.user_id == user_id))
+        user = user_res.scalar_one_or_none()
+
+        banned_groups_stmt = (
+            select(Group.chat_id, Group.title)
+            .join(GroupMember, GroupMember.chat_id == Group.chat_id)
+            .where(GroupMember.user_id == user_id, GroupMember.is_banned.is_(True))
+            .order_by(Group.title)
+        )
+        banned_groups_res = await session.execute(banned_groups_stmt)
+        banned_groups = [
+            {"chat_id": row[0], "title": row[1] or f"Chat {row[0]}"}
+            for row in banned_groups_res.all()
+        ]
+
+        muted_groups_stmt = (
+            select(Group.chat_id, Group.title, GroupMember.muted_until)
+            .join(GroupMember, GroupMember.chat_id == Group.chat_id)
+            .where(GroupMember.user_id == user_id, GroupMember.is_muted.is_(True))
+            .order_by(Group.title)
+        )
+        muted_groups_res = await session.execute(muted_groups_stmt)
+        muted_groups = [
+            {
+                "chat_id": row[0],
+                "title": row[1] or f"Chat {row[0]}",
+                "status": "muted",
+                "muted_until": row[2],
+            }
+            for row in muted_groups_res.all()
+        ]
+
+        fed_bans_stmt = (
+            select(Federation.fed_id, Federation.name, FederationBan.reason)
+            .join(FederationBan, FederationBan.fed_id == Federation.fed_id)
+            .where(FederationBan.user_id == user_id)
+            .order_by(FederationBan.banned_at.desc())
+        )
+        fed_bans_res = await session.execute(fed_bans_stmt)
+        fed_bans = [
+            {"fed_id": row[0], "name": row[1], "reason": row[2]}
+            for row in fed_bans_res.all()
+        ]
+
+        return {
+            "timeframe": timeframe,
+            "total_messages": int(tot_msg),
+            "total_stickers": int(tot_stick),
+            "total_media": int(tot_med),
+            "total_voice": int(tot_voice),
+            "active_chats": int(active_chats),
+            "top_chats": top_chats,
+            "banned_groups": banned_groups,
+            "muted_groups": muted_groups,
+            "federation_bans": fed_bans,
+            "karma": user.karma if user else 0,
+            "coins": user.coins if user else 0,
+            "daily_streak": user.daily_streak if user else 0,
+            "games_played": user.games_played if user else 0,
+            "games_won": user.games_won if user else 0,
+            "game_score": user.game_score if user else 0,
+        }
+
+    @classmethod
+    async def get_group_user_history(
+        cls,
+        session: AsyncSession,
+        chat_id: int,
+        user_id: int,
+        limit: int = 12,
+    ) -> dict[str, Any]:
+        user_res = await session.execute(select(User).where(User.user_id == user_id))
+        user = user_res.scalar_one_or_none()
+
+        group_res = await session.execute(select(Group).where(Group.chat_id == chat_id))
+        group = group_res.scalar_one_or_none()
+
+        moderation_res = await session.execute(
+            select(ModerationLog)
+            .where(ModerationLog.chat_id == chat_id, ModerationLog.target_user_id == user_id)
+            .order_by(ModerationLog.created_at.desc())
+            .limit(limit)
+        )
+        moderation_logs = list(moderation_res.scalars().all())
+
+        profile_res = await session.execute(
+            select(UserProfileChange)
+            .where(
+                UserProfileChange.user_id == user_id,
+                (UserProfileChange.chat_id == chat_id) | (UserProfileChange.chat_id.is_(None)),
+            )
+            .order_by(UserProfileChange.changed_at.desc())
+            .limit(limit)
+        )
+        profile_changes = list(profile_res.scalars().all())
+
+        return {
+            "user": user,
+            "group": group,
+            "moderation_logs": moderation_logs,
+            "profile_changes": profile_changes,
+        }
+
+    @classmethod
+    async def get_global_leaderboards(
+        cls,
+        session: AsyncSession,
+        limit: int = 10,
+    ) -> Dict[str, Any]:
+        top_users_stmt = (
+            select(
+                UserActivity.user_id,
+                func.sum(UserActivity.messages_count).label("messages"),
+                func.sum(UserActivity.stickers_count).label("stickers"),
+                func.sum(UserActivity.media_count).label("media"),
+                func.sum(UserActivity.voice_count).label("voice"),
+                User.first_name,
+                User.username,
+            )
+            .outerjoin(User, User.user_id == UserActivity.user_id)
+            .group_by(UserActivity.user_id, User.first_name, User.username)
+            .order_by(func.sum(UserActivity.messages_count).desc())
+            .limit(limit)
+        )
+        top_users_res = await session.execute(top_users_stmt)
+
+        top_groups_stmt = (
+            select(
+                UserActivity.chat_id,
+                Group.title,
+                func.sum(UserActivity.messages_count).label("messages"),
+                func.count(func.distinct(UserActivity.user_id)).label("contributors"),
+            )
+            .outerjoin(Group, Group.chat_id == UserActivity.chat_id)
+            .group_by(UserActivity.chat_id, Group.title)
+            .order_by(func.sum(UserActivity.messages_count).desc())
+            .limit(limit)
+        )
+        top_groups_res = await session.execute(top_groups_stmt)
+
+        top_games_stmt = (
+            select(
+                User.user_id,
+                User.first_name,
+                User.username,
+                User.games_played,
+                User.games_won,
+                User.game_score,
+            )
+            .order_by(User.game_score.desc(), User.games_won.desc(), User.games_played.desc())
+            .limit(limit)
+        )
+        top_games_res = await session.execute(top_games_stmt)
+
+        return {
+            "top_message_users": [
+                {
+                    "user_id": row[0],
+                    "messages": row[1] or 0,
+                    "stickers": row[2] or 0,
+                    "media": row[3] or 0,
+                    "voice": row[4] or 0,
+                    "name": row[5] or f"User {row[0]}",
+                    "username": row[6],
+                }
+                for row in top_users_res.all()
+            ],
+            "top_message_groups": [
+                {
+                    "chat_id": row[0],
+                    "title": row[1] or f"Chat {row[0]}",
+                    "messages": row[2] or 0,
+                    "contributors": row[3] or 0,
+                }
+                for row in top_groups_res.all()
+            ],
+            "top_game_players": [
+                {
+                    "user_id": row[0],
+                    "name": row[1] or f"User {row[0]}",
+                    "username": row[2],
+                    "games_played": row[3] or 0,
+                    "games_won": row[4] or 0,
+                    "game_score": row[5] or 0,
+                }
+                for row in top_games_res.all()
+            ],
         }
 
     @classmethod
@@ -170,7 +435,9 @@ class StatsService:
         return None
 
     @classmethod
-    def extract_palette(cls, img: Optional[Image.Image]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]:
+    def extract_palette(
+        cls, img: Optional[Image.Image]
+    ) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]:
         """Dynamically extracts dominant vibrant theme colors from the group avatar."""
         if not img:
             return (0, 215, 255), (160, 80, 255)
@@ -182,7 +449,7 @@ class StatsService:
         for r, g, b in pixels:
             h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
             if 0.20 <= s <= 0.99 and 0.25 <= v <= 0.99:
-                score = (s ** 1.3) * (v ** 1.1)
+                score = (s**1.3) * (v**1.1)
                 scored.append((score, (r, g, b)))
 
         if not scored:
@@ -192,7 +459,9 @@ class StatsService:
         primary = scored[0][1]
 
         # Brighten/boost primary if needed
-        pr_h, pr_s, pr_v = colorsys.rgb_to_hsv(primary[0] / 255.0, primary[1] / 255.0, primary[2] / 255.0)
+        pr_h, pr_s, pr_v = colorsys.rgb_to_hsv(
+            primary[0] / 255.0, primary[1] / 255.0, primary[2] / 255.0
+        )
         pr_v = max(0.85, pr_v)
         pr_s = min(0.95, max(0.65, pr_s))
         p_rgb = colorsys.hsv_to_rgb(pr_h, pr_s, pr_v)
@@ -211,7 +480,9 @@ class StatsService:
             s_rgb = colorsys.hsv_to_rgb(sec_h, 0.85, 0.95)
             secondary = (int(s_rgb[0] * 255), int(s_rgb[1] * 255), int(s_rgb[2] * 255))
         else:
-            sec_h, sec_s, sec_v = colorsys.rgb_to_hsv(secondary[0] / 255.0, secondary[1] / 255.0, secondary[2] / 255.0)
+            sec_h, sec_s, sec_v = colorsys.rgb_to_hsv(
+                secondary[0] / 255.0, secondary[1] / 255.0, secondary[2] / 255.0
+            )
             sec_v = max(0.80, sec_v)
             sec_s = min(0.95, max(0.60, sec_s))
             s_rgb = colorsys.hsv_to_rgb(sec_h, sec_s, sec_v)
@@ -291,7 +562,9 @@ class StatsService:
         av_x, av_y = 80 * scale, 62 * scale
 
         if avatar_img:
-            av_resized = avatar_img.convert("RGBA").resize((AVATAR_D, AVATAR_D), Image.Resampling.LANCZOS)
+            av_resized = avatar_img.convert("RGBA").resize(
+                (AVATAR_D, AVATAR_D), Image.Resampling.LANCZOS
+            )
         else:
             av_resized = Image.new("RGBA", (AVATAR_D, AVATAR_D), (28, 34, 48, 255))
             d_av = ImageDraw.Draw(av_resized)
@@ -299,7 +572,10 @@ class StatsService:
             f_init = cls._get_font("Outfit", 44 * scale)
             bbox = d_av.textbbox((0, 0), init_letter, font=f_init)
             d_av.text(
-                ((AVATAR_D - (bbox[2] - bbox[0])) // 2, (AVATAR_D - (bbox[3] - bbox[1])) // 2 - 4 * scale),
+                (
+                    (AVATAR_D - (bbox[2] - bbox[0])) // 2,
+                    (AVATAR_D - (bbox[3] - bbox[1])) // 2 - 4 * scale,
+                ),
                 init_letter,
                 fill=(255, 255, 255, 255),
                 font=f_init,
@@ -324,8 +600,12 @@ class StatsService:
 
         # Group Title & Brand Header
         clean_title = QuoteService.clean_emoji_text(chat_title)[:24]
-        draw.text((196 * scale, 64 * scale), "ACTIVITY METRICS", fill=(*primary, 230), font=font_brand)
-        draw.text((196 * scale, 88 * scale), clean_title, fill=(255, 255, 255, 255), font=font_title)
+        draw.text(
+            (196 * scale, 64 * scale), "ACTIVITY METRICS", fill=(*primary, 230), font=font_brand
+        )
+        draw.text(
+            (196 * scale, 88 * scale), clean_title, fill=(255, 255, 255, 255), font=font_title
+        )
 
         # Timeframe Chip
         timeframe_label = stats_data.get("timeframe", "today").upper()
@@ -341,7 +621,12 @@ class StatsService:
             outline=(*primary, 140),
             width=1 * scale,
         )
-        draw.text((tf_x + 12 * scale, tf_y + 3 * scale), timeframe_text, fill=(*primary, 255), font=font_timeframe)
+        draw.text(
+            (tf_x + 12 * scale, tf_y + 3 * scale),
+            timeframe_text,
+            fill=(*primary, 255),
+            font=font_timeframe,
+        )
 
         # 4. Top Metrics Cards (Top Right of Header)
         metrics = [
@@ -366,12 +651,27 @@ class StatsService:
                 outline=(45, 52, 74, 180),
                 width=1 * scale,
             )
-            draw.text((cx + 16 * scale, m_y + 12 * scale), val, fill=(255, 255, 255, 255), font=font_metric_num)
-            draw.text((cx + 16 * scale, m_y + 54 * scale), lbl, fill=(145, 158, 185, 255), font=font_metric_lbl)
+            draw.text(
+                (cx + 16 * scale, m_y + 12 * scale),
+                val,
+                fill=(255, 255, 255, 255),
+                font=font_metric_num,
+            )
+            draw.text(
+                (cx + 16 * scale, m_y + 54 * scale),
+                lbl,
+                fill=(145, 158, 185, 255),
+                font=font_metric_lbl,
+            )
 
         # 5. Leaderboard Section Header
         lb_y = 196 * scale
-        draw.text((65 * scale, lb_y), "TOP ACTIVE CONTRIBUTORS", fill=(255, 255, 255, 255), font=font_section)
+        draw.text(
+            (65 * scale, lb_y),
+            "TOP ACTIVE CONTRIBUTORS",
+            fill=(255, 255, 255, 255),
+            font=font_section,
+        )
 
         # 6. Leaderboard Rows (Top 6 users)
         top_users = stats_data.get("top_users", [])[:6]
@@ -384,9 +684,9 @@ class StatsService:
 
         medal_labels = ["#1", "#2", "#3", "#4", "#5", "#6"]
         medal_colors = [
-            (255, 215, 0),    # Gold #1
+            (255, 215, 0),  # Gold #1
             (210, 220, 235),  # Silver #2
-            (225, 145, 70),   # Bronze #3
+            (225, 145, 70),  # Bronze #3
             (145, 155, 175),
             (145, 155, 175),
             (145, 155, 175),
@@ -419,12 +719,19 @@ class StatsService:
                 outline=r_outline,
                 width=1 * scale,
             )
-            draw.text((82 * scale, ry + 19 * scale), medal_labels[idx], fill=medal_colors[idx], font=font_user_rank)
+            draw.text(
+                (82 * scale, ry + 19 * scale),
+                medal_labels[idx],
+                fill=medal_colors[idx],
+                font=font_user_rank,
+            )
 
             # User Name
             user_name = QuoteService.clean_emoji_text(u["name"])[:20]
             name_color = (255, 255, 255, 255) if is_top3 else (225, 230, 242, 240)
-            draw.text((138 * scale, ry + 17 * scale), user_name, fill=name_color, font=font_user_name)
+            draw.text(
+                (138 * scale, ry + 17 * scale), user_name, fill=name_color, font=font_user_name
+            )
 
             # Message Count Pill (Right)
             count_str = f"{u['messages']:,} msgs"
@@ -444,7 +751,12 @@ class StatsService:
                 width=1 * scale,
             )
             count_color = (*primary, 255) if idx == 0 else (220, 228, 245, 255)
-            draw.text((pill_x + 12 * scale, pill_y + 6 * scale), count_str, fill=count_color, font=font_user_stat)
+            draw.text(
+                (pill_x + 12 * scale, pill_y + 6 * scale),
+                count_str,
+                fill=count_color,
+                font=font_user_stat,
+            )
 
             # Progress Bar (Between Name and Count Pill)
             bar_x = 520 * scale
@@ -463,7 +775,15 @@ class StatsService:
             ratio = min(1.0, u["messages"] / max_msgs)
             filled_w = max(10 * scale, int(bar_w * ratio))
 
-            bar_fill = primary if idx == 0 else secondary if idx == 1 else (95, 160, 245) if idx == 2 else (80, 95, 130)
+            bar_fill = (
+                primary
+                if idx == 0
+                else secondary
+                if idx == 1
+                else (95, 160, 245)
+                if idx == 2
+                else (80, 95, 130)
+            )
             draw.rounded_rectangle(
                 (bar_x, bar_y, bar_x + filled_w, bar_y + bar_h),
                 radius=6 * scale,

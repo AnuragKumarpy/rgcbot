@@ -1,7 +1,9 @@
 from datetime import date
+import asyncio
 import pytest
 from aiogram.types import Chat, Message, User as TgUser
 from src.models.group import Group
+from src.services.games_service import GamesService
 from src.services.locks_service import LocksService
 from src.services.settings_transfer_service import SettingsTransferService
 from src.services.stats_service import StatsService
@@ -112,3 +114,18 @@ def test_stats_palette_extraction_and_card_generation():
     assert bio is not None
     assert len(bio.getvalue()) > 5000
 
+
+def test_game_result_tracking_updates_user_counters():
+    class DummyUser:
+        def __init__(self):
+            self.games_played = 0
+            self.games_won = 0
+            self.game_score = 0
+
+    dummy = DummyUser()
+
+    asyncio.run(GamesService.record_game_result(object(), dummy, score_delta=25, won=True))
+
+    assert dummy.games_played == 1
+    assert dummy.games_won == 1
+    assert dummy.game_score == 25

@@ -1,8 +1,12 @@
 from typing import Optional
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.core.enums import TTLType
 from src.keyboards.moderation_kb import get_warn_undo_keyboard
 from src.middlewares.ttl import reply_with_ttl
@@ -10,10 +14,33 @@ from src.models.group import Group
 from src.models.user import User
 from src.services.moderation_service import ModerationService
 from src.utils.emojis import E_ALERT, E_SHIELD, E_WARN
+from src.utils.permissions import is_super_admin
 from src.utils.target_resolver import resolve_target
 from src.utils.text_formatter import format_card, get_user_mention, mention_html
 
 router = Router(name="admin_warn")
+
+
+async def _get_or_create_target_user(session: AsyncSession, target) -> User:
+    """Fetch the target's existing User row, or create one safely (race-safe upsert)."""
+    result = await session.execute(select(User).where(User.user_id == target.user_id))
+    db_user = result.scalars().first()
+    if db_user:
+        return db_user
+
+    stmt = (
+        pg_insert(User)
+        .values(
+            user_id=target.user_id,
+            username=target.username,
+            first_name=target.first_name or "",
+        )
+        .on_conflict_do_nothing(index_elements=["user_id"])
+    )
+    await session.execute(stmt)
+    await session.flush()
+    result = await session.execute(select(User).where(User.user_id == target.user_id))
+    return result.scalars().first()
 
 
 @router.message(Command("warn", "swarn", "dwarn"))
@@ -27,7 +54,6 @@ async def handle_warn(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -35,7 +61,6 @@ async def handle_warn(
             ttl_type=TTLType.WARN,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -45,7 +70,13 @@ async def handle_warn(
             ttl_type=TTLType.WARN,
         )
         return
-
+    if is_super_admin(target.user_id):
+        await reply_with_ttl(
+            message,
+            f"{E_SHIELD} This user is a <b>Super Admin</b> and is immune to moderation actions.",
+            ttl_type=TTLType.WARN,
+        )
+        return
     cmd_text = (message.text or "").split()[0].lower()
     if "dwarn" in cmd_text and message.reply_to_message:
         try:
@@ -54,14 +85,8 @@ async def handle_warn(
             )
         except Exception:
             pass
-
     reason = " ".join(target.remaining_args) if target.remaining_args else "No reason specified"
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         current_warns, max_warns, escalated_action = await ModerationService.warn_user(
             bot=message.bot,
@@ -71,10 +96,8 @@ async def handle_warn(
             admin_user=db_user,
             reason=reason,
         )
-
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         if escalated_action:
             card = format_card(
                 title=f"{E_ALERT} WARNING LIMIT EXCEEDED",
@@ -95,15 +118,10 @@ async def handle_warn(
                     ("Admin", admin_mention),
                 ],
             )
-
         undo_kb = get_warn_undo_keyboard(db_group.chat_id, target.user_id)
-        await reply_with_ttl(
-            message, card, ttl_type=TTLType.WARN, reply_markup=undo_kb
-        )
+        await reply_with_ttl(message, card, ttl_type=TTLType.WARN, reply_markup=undo_kb)
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to warn user: {e}", ttl_type=TTLType.WARN
-        )
+        await reply_with_ttl(message, f"❌ Failed to warn user: {e}", ttl_type=TTLType.WARN)
 
 
 @router.message(Command("warns"))
@@ -115,12 +133,18 @@ async def handle_get_warns(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
-    target_user_id = target.user_id if target else (message.from_user.id if message.from_user else 0)
-    target_name = target.first_name if target else (message.from_user.first_name if message.from_user else "User")
-    target_username = target.username if target else (message.from_user.username if message.from_user else None)
-
+    target_user_id = (
+        target.user_id if target else (message.from_user.id if message.from_user else 0)
+    )
+    target_name = (
+        target.first_name
+        if target
+        else (message.from_user.first_name if message.from_user else "User")
+    )
+    target_username = (
+        target.username if target else (message.from_user.username if message.from_user else None)
+    )
     member = await ModerationService.get_or_create_member(
         session,
         db_group.chat_id,
@@ -152,7 +176,6 @@ async def handle_reset_warns(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -160,7 +183,6 @@ async def handle_reset_warns(
             ttl_type=TTLType.WARN,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -170,12 +192,7 @@ async def handle_reset_warns(
             ttl_type=TTLType.WARN,
         )
         return
-
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.reset_warns(
             bot=message.bot,
@@ -184,13 +201,10 @@ async def handle_reset_warns(
             target_user=target_user,
             admin_user=db_user,
         )
-
         await reply_with_ttl(
             message,
             f"{E_SHIELD} Warnings for {mention_html(target.user_id, target.first_name)} have been reset to <b>0/{db_group.max_warns}</b>.",
             ttl_type=TTLType.WARN,
         )
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to reset warnings: {e}", ttl_type=TTLType.WARN
-        )
+        await reply_with_ttl(message, f"❌ Failed to reset warnings: {e}", ttl_type=TTLType.WARN)

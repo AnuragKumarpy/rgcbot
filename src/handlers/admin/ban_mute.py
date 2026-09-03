@@ -1,8 +1,12 @@
 from typing import Optional
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.core.enums import TTLType
 from src.keyboards.moderation_kb import get_ban_undo_keyboard, get_mute_undo_keyboard
 from src.middlewares.ttl import reply_with_ttl
@@ -10,11 +14,56 @@ from src.models.group import Group
 from src.models.user import User
 from src.services.moderation_service import ModerationService
 from src.utils.emojis import E_ALERT, E_BAN, E_BELL, E_LOCK, E_SHIELD, E_STOP, E_WARN
+from src.utils.permissions import is_super_admin
 from src.utils.target_resolver import resolve_target
 from src.utils.text_formatter import format_card, get_user_mention, mention_html
 from src.utils.time_parser import format_duration, parse_time_string
 
 router = Router(name="admin_ban_mute")
+
+
+async def _get_or_create_target_user(session: AsyncSession, target) -> User:
+    """
+    Fetch the target's existing User row, or create one safely.
+
+    Previously this file built a fresh `User(...)` object directly from the
+    resolved target and passed it straight to ModerationService. If that
+    user already existed in the DB (which is common - most targets have
+    messaged before), that's a detached object sharing a primary key with
+    an existing row, and it risks the same UniqueViolationError race we
+    fixed in auth.py depending on what ModerationService does with it.
+    This helper always returns a real, DB-backed row instead.
+    """
+    result = await session.execute(select(User).where(User.user_id == target.user_id))
+    db_user = result.scalars().first()
+    if db_user:
+        return db_user
+
+    stmt = (
+        pg_insert(User)
+        .values(
+            user_id=target.user_id,
+            username=target.username,
+            first_name=target.first_name or "",
+        )
+        .on_conflict_do_nothing(index_elements=["user_id"])
+    )
+    await session.execute(stmt)
+    await session.flush()
+    result = await session.execute(select(User).where(User.user_id == target.user_id))
+    return result.scalars().first()
+
+
+async def _reject_if_super_admin_target(message: Message, target) -> bool:
+    """Returns True (and replies) if the target is a super admin and the action should be blocked."""
+    if is_super_admin(target.user_id):
+        await reply_with_ttl(
+            message,
+            f"{E_SHIELD} This user is a <b>Super Admin</b> and is immune to moderation actions.",
+            ttl_type=TTLType.MODERATION,
+        )
+        return True
+    return False
 
 
 @router.message(Command("ban", "sban", "dban"))
@@ -28,7 +77,6 @@ async def handle_ban(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -36,7 +84,6 @@ async def handle_ban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -46,7 +93,8 @@ async def handle_ban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
+    if await _reject_if_super_admin_target(message, target):
+        return
     # If /dban, delete the replied-to message
     cmd_text = (message.text or "").split()[0].lower()
     if "dban" in cmd_text and message.reply_to_message:
@@ -56,14 +104,8 @@ async def handle_ban(
             )
         except Exception:
             pass
-
     reason = " ".join(target.remaining_args) if target.remaining_args else "No reason specified"
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.ban_user(
             bot=message.bot,
@@ -75,7 +117,6 @@ async def handle_ban(
         )
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         card = format_card(
             title=f"{E_BAN} SANCTION: PERMANENT BAN",
             fields=[
@@ -86,13 +127,9 @@ async def handle_ban(
             ],
         )
         undo_kb = get_ban_undo_keyboard(db_group.chat_id, target.user_id)
-        await reply_with_ttl(
-            message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb
-        )
+        await reply_with_ttl(message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb)
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to ban user: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to ban user: {e}", ttl_type=TTLType.MODERATION)
 
 
 @router.message(Command("tban"))
@@ -106,7 +143,6 @@ async def handle_tban(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -114,7 +150,6 @@ async def handle_tban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target or not target.remaining_args:
         await reply_with_ttl(
@@ -124,7 +159,8 @@ async def handle_tban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
+    if await _reject_if_super_admin_target(message, target):
+        return
     # Find duration in remaining args
     duration_sec: Optional[int] = None
     duration_idx = -1
@@ -134,7 +170,6 @@ async def handle_tban(
             duration_sec = sec
             duration_idx = idx
             break
-
     if not duration_sec or duration_idx == -1:
         await reply_with_ttl(
             message,
@@ -142,18 +177,9 @@ async def handle_tban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
-    reason_parts = [
-        arg for i, arg in enumerate(target.remaining_args) if i != duration_idx
-    ]
+    reason_parts = [arg for i, arg in enumerate(target.remaining_args) if i != duration_idx]
     reason = " ".join(reason_parts) if reason_parts else "No reason specified"
-
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.ban_user(
             bot=message.bot,
@@ -166,7 +192,6 @@ async def handle_tban(
         )
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         card = format_card(
             title=f"{E_STOP} SANCTION: TEMPORARY BAN",
             fields=[
@@ -177,9 +202,7 @@ async def handle_tban(
             ],
         )
         undo_kb = get_ban_undo_keyboard(db_group.chat_id, target.user_id)
-        await reply_with_ttl(
-            message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb
-        )
+        await reply_with_ttl(message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb)
     except Exception as e:
         await reply_with_ttl(
             message, f"❌ Failed to temp-ban user: {e}", ttl_type=TTLType.MODERATION
@@ -197,7 +220,6 @@ async def handle_mute(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -205,7 +227,6 @@ async def handle_mute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -215,7 +236,8 @@ async def handle_mute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
+    if await _reject_if_super_admin_target(message, target):
+        return
     cmd_text = (message.text or "").split()[0].lower()
     if "dmute" in cmd_text and message.reply_to_message:
         try:
@@ -224,14 +246,8 @@ async def handle_mute(
             )
         except Exception:
             pass
-
     reason = " ".join(target.remaining_args) if target.remaining_args else "No reason specified"
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.mute_user(
             bot=message.bot,
@@ -243,7 +259,6 @@ async def handle_mute(
         )
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         card = format_card(
             title=f"{E_LOCK} SANCTION: PERMANENT MUTE",
             fields=[
@@ -254,13 +269,9 @@ async def handle_mute(
             ],
         )
         undo_kb = get_mute_undo_keyboard(db_group.chat_id, target.user_id)
-        await reply_with_ttl(
-            message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb
-        )
+        await reply_with_ttl(message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb)
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to mute user: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to mute user: {e}", ttl_type=TTLType.MODERATION)
 
 
 @router.message(Command("tmute"))
@@ -274,7 +285,6 @@ async def handle_tmute(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -282,7 +292,6 @@ async def handle_tmute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target or not target.remaining_args:
         await reply_with_ttl(
@@ -292,7 +301,8 @@ async def handle_tmute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
+    if await _reject_if_super_admin_target(message, target):
+        return
     duration_sec: Optional[int] = None
     duration_idx = -1
     for idx, arg in enumerate(target.remaining_args):
@@ -301,7 +311,6 @@ async def handle_tmute(
             duration_sec = sec
             duration_idx = idx
             break
-
     if not duration_sec or duration_idx == -1:
         await reply_with_ttl(
             message,
@@ -309,18 +318,9 @@ async def handle_tmute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
-    reason_parts = [
-        arg for i, arg in enumerate(target.remaining_args) if i != duration_idx
-    ]
+    reason_parts = [arg for i, arg in enumerate(target.remaining_args) if i != duration_idx]
     reason = " ".join(reason_parts) if reason_parts else "No reason specified"
-
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.mute_user(
             bot=message.bot,
@@ -333,7 +333,6 @@ async def handle_tmute(
         )
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         card = format_card(
             title=f"{E_LOCK} SANCTION: TEMPORARY MUTE",
             fields=[
@@ -344,9 +343,7 @@ async def handle_tmute(
             ],
         )
         undo_kb = get_mute_undo_keyboard(db_group.chat_id, target.user_id)
-        await reply_with_ttl(
-            message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb
-        )
+        await reply_with_ttl(message, card, ttl_type=TTLType.MODERATION, reply_markup=undo_kb)
     except Exception as e:
         await reply_with_ttl(
             message, f"❌ Failed to temp-mute user: {e}", ttl_type=TTLType.MODERATION
@@ -364,7 +361,6 @@ async def handle_unban(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -372,7 +368,6 @@ async def handle_unban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -381,12 +376,7 @@ async def handle_unban(
             ttl_type=TTLType.MODERATION,
         )
         return
-
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.unban_user(
             bot=message.bot,
@@ -401,9 +391,7 @@ async def handle_unban(
             ttl_type=TTLType.MODERATION,
         )
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to unban user: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to unban user: {e}", ttl_type=TTLType.MODERATION)
 
 
 @router.message(Command("unmute"))
@@ -417,7 +405,6 @@ async def handle_unmute(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -425,7 +412,6 @@ async def handle_unmute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -434,12 +420,7 @@ async def handle_unmute(
             ttl_type=TTLType.MODERATION,
         )
         return
-
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.unmute_user(
             bot=message.bot,
@@ -454,9 +435,7 @@ async def handle_unmute(
             ttl_type=TTLType.MODERATION,
         )
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to unmute user: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to unmute user: {e}", ttl_type=TTLType.MODERATION)
 
 
 @router.message(Command("kick", "skick", "dkick"))
@@ -470,7 +449,6 @@ async def handle_kick(
     if not db_group or not session:
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
-
     if not can_restrict:
         await reply_with_ttl(
             message,
@@ -478,7 +456,6 @@ async def handle_kick(
             ttl_type=TTLType.MODERATION,
         )
         return
-
     target = await resolve_target(message, session=session, bot=message.bot)
     if not target:
         await reply_with_ttl(
@@ -488,7 +465,8 @@ async def handle_kick(
             ttl_type=TTLType.MODERATION,
         )
         return
-
+    if await _reject_if_super_admin_target(message, target):
+        return
     cmd_text = (message.text or "").split()[0].lower()
     if "dkick" in cmd_text and message.reply_to_message:
         try:
@@ -497,14 +475,8 @@ async def handle_kick(
             )
         except Exception:
             pass
-
     reason = " ".join(target.remaining_args) if target.remaining_args else "No reason specified"
-    target_user = User(
-        user_id=target.user_id,
-        username=target.username,
-        first_name=target.first_name,
-    )
-
+    target_user = await _get_or_create_target_user(session, target)
     try:
         await ModerationService.kick_user(
             bot=message.bot,
@@ -516,7 +488,6 @@ async def handle_kick(
         )
         target_mention = mention_html(target.user_id, target.first_name)
         admin_mention = get_user_mention(message.from_user)
-
         card = format_card(
             title=f"{E_STOP} MEMBER REMOVED",
             fields=[
@@ -528,9 +499,7 @@ async def handle_kick(
         )
         await reply_with_ttl(message, card, ttl_type=TTLType.MODERATION)
     except Exception as e:
-        await reply_with_ttl(
-            message, f"❌ Failed to kick user: {e}", ttl_type=TTLType.MODERATION
-        )
+        await reply_with_ttl(message, f"❌ Failed to kick user: {e}", ttl_type=TTLType.MODERATION)
 
 
 # Interactive Inline Undo Handler
@@ -542,24 +511,22 @@ async def handle_undo_callback(
 ):
     if not session or not call.message or not call.from_user:
         return
-
     if not can_restrict:
         await call.answer("❌ Only administrators can undo moderation actions.", show_alert=True)
         return
-
     parts = call.data.split(":")
     action = parts[1]
     chat_id = int(parts[2])
     target_user_id = int(parts[3])
-
-    group = await ModerationService.ensure_group(session, chat_id, title=call.message.chat.title or "Group")
+    group = await ModerationService.ensure_group(
+        session, chat_id, title=call.message.chat.title or "Group"
+    )
     admin_user = await ModerationService.ensure_user(
         session, call.from_user.id, call.from_user.first_name, call.from_user.username
     )
     target_user = await ModerationService.ensure_user(
         session, target_user_id, f"User {target_user_id}", None
     )
-
     if action == "unmute":
         await ModerationService.unmute_user(
             bot=call.bot,
@@ -576,7 +543,6 @@ async def handle_undo_callback(
             parse_mode="HTML",
         )
         await call.answer("✅ User unmuted!")
-
     elif action == "unban":
         await ModerationService.unban_user(
             bot=call.bot,
@@ -593,7 +559,6 @@ async def handle_undo_callback(
             parse_mode="HTML",
         )
         await call.answer("✅ User unbanned!")
-
     elif action == "unwarn":
         await ModerationService.reset_warns(
             bot=call.bot,

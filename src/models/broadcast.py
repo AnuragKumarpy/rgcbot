@@ -18,5 +18,7 @@ class BroadcastRecord(Base):
     success_count: Mapped[int] = mapped_column(Integer, default=0)
     failed_count: Mapped[int] = mapped_column(Integer, default=0)
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[str] = mapped_column(String(32), default="completed")  # queued, sending, completed
+    status: Mapped[str] = mapped_column(
+        String(32), default="completed"
+    )  # queued, sending, completed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

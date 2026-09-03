@@ -57,7 +57,7 @@ class ReportService:
             tgt_name = html.escape(reported_user.full_name)
             tgt_user = f"@{reported_user.username}" if reported_user.username else "No username"
             target_info = (
-                f"• <b>Reported User:</b> <a href=\"tg://user?id={reported_user.id}\">{tgt_name}</a> ({tgt_user})\n"
+                f'• <b>Reported User:</b> <a href="tg://user?id={reported_user.id}">{tgt_name}</a> ({tgt_user})\n'
                 f"• <b>Target ID:</b> <code>{reported_user.id}</code>"
             )
         else:
@@ -75,33 +75,37 @@ class ReportService:
             f"• <b>Reporter:</b> {rep_name} ({rep_user})\n"
             f"• <b>Reason:</b> <code>{html.escape(reason)}</code>"
             f"{msg_content}\n"
-            f"• <b>Direct Link:</b> <a href=\"{msg_link}\">Open Message ↗️</a>"
+            f'• <b>Direct Link:</b> <a href="{msg_link}">Open Message ↗️</a>'
         )
 
         # 3. Action Keyboard for Admins in DM
         buttons = []
         if reported_user and not reported_user.is_bot:
-            buttons.append([
-                InlineKeyboardButton(
-                    text="🔨 Ban User",
-                    callback_data=f"rep_act:ban:{chat.id}:{reported_user.id}",
-                ),
-                InlineKeyboardButton(
-                    text="🔇 Mute 24h",
-                    callback_data=f"rep_act:mute:{chat.id}:{reported_user.id}",
-                ),
-            ])
+            buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text="🔨 Ban User",
+                        callback_data=f"rep_act:ban:{chat.id}:{reported_user.id}",
+                    ),
+                    InlineKeyboardButton(
+                        text="🔇 Mute 24h",
+                        callback_data=f"rep_act:mute:{chat.id}:{reported_user.id}",
+                    ),
+                ]
+            )
 
-        buttons.append([
-            InlineKeyboardButton(
-                text="🗑 Delete Message",
-                callback_data=f"rep_act:del:{chat.id}:{target_msg_id}",
-            ),
-            InlineKeyboardButton(
-                text="🛡 Dismiss",
-                callback_data="rep_act:dismiss",
-            ),
-        ])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    text="🗑 Delete Message",
+                    callback_data=f"rep_act:del:{chat.id}:{target_msg_id}",
+                ),
+                InlineKeyboardButton(
+                    text="🛡 Dismiss",
+                    callback_data="rep_act:dismiss",
+                ),
+            ]
+        )
         kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
         # 4. Dispatch DM to all human administrators

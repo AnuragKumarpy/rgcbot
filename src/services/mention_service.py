@@ -16,9 +16,36 @@ from src.utils.emojis import E_CHECK, E_FIRE, E_ROCKET, E_SPARKLES, E_STAR, anim
 
 # Cool random emojis for 100% zero-risk secret tagging
 COOL_EMOJIS = [
-    "⚡", "🔥", "💎", "👑", "🚀", "✨", "🌸", "❤️", "🌟", "💫",
-    "🎯", "🏆", "🔮", "🦄", "🛡️", "🪐", "🍀", "☄️", "🪄", "🛸",
-    "🦁", "🦅", "🐺", "🐅", "🌊", "🌙", "☀️", "🌪️", "💥", "🍾",
+    "⚡",
+    "🔥",
+    "💎",
+    "👑",
+    "🚀",
+    "✨",
+    "🌸",
+    "❤️",
+    "🌟",
+    "💫",
+    "🎯",
+    "🏆",
+    "🔮",
+    "🦄",
+    "🛡️",
+    "🪐",
+    "🍀",
+    "☄️",
+    "🪄",
+    "🛸",
+    "🦁",
+    "🦅",
+    "🐺",
+    "🐅",
+    "🌊",
+    "🌙",
+    "☀️",
+    "🌪️",
+    "💥",
+    "🍾",
 ]
 
 # Track active tagging tasks per chat: {chat_id: asyncio.Task}
@@ -73,11 +100,13 @@ class MentionService:
             for r in res_act.all():
                 if r[0] not in seen_ids:
                     seen_ids.add(r[0])
-                    members.append({
-                        "user_id": r[0],
-                        "first_name": r[1] or f"User {r[0]}",
-                        "username": r[2],
-                    })
+                    members.append(
+                        {
+                            "user_id": r[0],
+                            "first_name": r[1] or f"User {r[0]}",
+                            "username": r[2],
+                        }
+                    )
 
             # 2. Active users from GroupMember table with message_count > 0
             stmt_gm = (
@@ -97,11 +126,13 @@ class MentionService:
             for r in res_gm.all():
                 if r[0] not in seen_ids:
                     seen_ids.add(r[0])
-                    members.append({
-                        "user_id": r[0],
-                        "first_name": r[1] or f"User {r[0]}",
-                        "username": r[2],
-                    })
+                    members.append(
+                        {
+                            "user_id": r[0],
+                            "first_name": r[1] or f"User {r[0]}",
+                            "username": r[2],
+                        }
+                    )
 
             # 3. Always include chat administrators in active list
             try:
@@ -111,11 +142,13 @@ class MentionService:
                         continue
                     if adm.user.id not in seen_ids:
                         seen_ids.add(adm.user.id)
-                        members.append({
-                            "user_id": adm.user.id,
-                            "first_name": adm.user.first_name or f"User {adm.user.id}",
-                            "username": adm.user.username,
-                        })
+                        members.append(
+                            {
+                                "user_id": adm.user.id,
+                                "first_name": adm.user.first_name or f"User {adm.user.id}",
+                                "username": adm.user.username,
+                            }
+                        )
             except Exception as e:
                 logger.debug(f"Could not fetch chat administrators for mention list: {e}")
 
@@ -134,11 +167,13 @@ class MentionService:
             for r in gm_res.all():
                 if r[0] not in seen_ids:
                     seen_ids.add(r[0])
-                    members.append({
-                        "user_id": r[0],
-                        "first_name": r[1] or f"User {r[0]}",
-                        "username": r[2],
-                    })
+                    members.append(
+                        {
+                            "user_id": r[0],
+                            "first_name": r[1] or f"User {r[0]}",
+                            "username": r[2],
+                        }
+                    )
 
             # 2. Query UserActivity table
             act_stmt = (
@@ -154,11 +189,13 @@ class MentionService:
             for r in act_res.all():
                 if r[0] not in seen_ids:
                     seen_ids.add(r[0])
-                    members.append({
-                        "user_id": r[0],
-                        "first_name": r[1] or f"User {r[0]}",
-                        "username": r[2],
-                    })
+                    members.append(
+                        {
+                            "user_id": r[0],
+                            "first_name": r[1] or f"User {r[0]}",
+                            "username": r[2],
+                        }
+                    )
 
             # 3. Query Chat Administrators
             try:
@@ -168,11 +205,13 @@ class MentionService:
                         continue
                     if adm.user.id not in seen_ids:
                         seen_ids.add(adm.user.id)
-                        members.append({
-                            "user_id": adm.user.id,
-                            "first_name": adm.user.first_name or f"User {adm.user.id}",
-                            "username": adm.user.username,
-                        })
+                        members.append(
+                            {
+                                "user_id": adm.user.id,
+                                "first_name": adm.user.first_name or f"User {adm.user.id}",
+                                "username": adm.user.username,
+                            }
+                        )
             except Exception as e:
                 logger.debug(f"Could not fetch chat administrators for mention list: {e}")
 
@@ -216,19 +255,23 @@ class MentionService:
         NO TTL deletion is applied to tagging messages so mention notifications persist.
         """
         chunk_size = 5
-        chunks = [members[i:i + chunk_size] for i in range(0, len(members), chunk_size)]
+        chunks = [members[i : i + chunk_size] for i in range(0, len(members), chunk_size)]
         total_chunks = len(chunks)
         delay_per_chunk = 1.5  # Optimized maximum safe speed (1.5s per chunk)
         eta_sec = total_chunks * delay_per_chunk
-        eta_str = f"{int(eta_sec)}s" if eta_sec < 60 else f"{int(eta_sec // 60)}m {int(eta_sec % 60)}s"
+        eta_str = (
+            f"{int(eta_sec)}s" if eta_sec < 60 else f"{int(eta_sec // 60)}m {int(eta_sec % 60)}s"
+        )
 
-        logger.info(f"Starting mention loop in chat {chat_id}: {len(members)} users in {total_chunks} batches (ETA: ~{eta_str})")
+        logger.info(
+            f"Starting mention loop in chat {chat_id}: {len(members)} users in {total_chunks} batches (ETA: ~{eta_str})"
+        )
 
         # 1. Dispatch ETA & Live Tagging Status Header
         stop_kb = InlineKeyboardMarkup(
-            inline_keyboard=[[
-                InlineKeyboardButton(text="⏹️ Stop Tagging", callback_data=f"tag_stop:{chat_id}")
-            ]]
+            inline_keyboard=[
+                [InlineKeyboardButton(text="⏹️ Stop Tagging", callback_data=f"tag_stop:{chat_id}")]
+            ]
         )
         status_text = animate_text(
             f"{E_ROCKET} <b>Auto-Syncing & Preparing Mention Queue...</b>\n\n"

@@ -89,7 +89,9 @@ async def handle_confirm_panic_callback(
     admin_id = int(parts[4])
 
     if call.from_user.id != admin_id and not is_super_admin(call.from_user.id):
-        await call.answer("❌ Only the admin who initiated the command can confirm.", show_alert=True)
+        await call.answer(
+            "❌ Only the admin who initiated the command can confirm.", show_alert=True
+        )
         return
 
     res = await session.execute(select(Group).where(Group.chat_id == chat_id)) if session else None
@@ -191,7 +193,9 @@ async def handle_cancel_panic_callback(call: CallbackQuery):
     admin_id = int(parts[-1]) if len(parts) >= 5 else 0
 
     if admin_id and call.from_user.id != admin_id and not is_super_admin(call.from_user.id):
-        await call.answer("❌ Only the admin who initiated the command can cancel.", show_alert=True)
+        await call.answer(
+            "❌ Only the admin who initiated the command can cancel.", show_alert=True
+        )
         return
 
     admin_mention = get_user_mention(call.from_user)
@@ -205,7 +209,6 @@ async def handle_cancel_panic_callback(call: CallbackQuery):
 
     await call.answer("Action Cancelled.")
     await schedule_auto_delete(call.message.chat.id, call.message.message_id, ttl_seconds=10)
-
 
 
 @router.message(Command("setnote", "addnote"))
@@ -247,7 +250,10 @@ async def handle_set_note(
     card = format_card(
         title=f"{E_NOTE} ADMIN NOTE ATTACHED",
         fields=[
-            ("Target", f"{mention_html(target.user_id, target.first_name)} [<code>{target.user_id}</code>]"),
+            (
+                "Target",
+                f"{mention_html(target.user_id, target.first_name)} [<code>{target.user_id}</code>]",
+            ),
             ("Note", escape_html(note_text)),
             ("Author", get_user_mention(message.from_user)),
         ],
@@ -305,7 +311,9 @@ async def handle_get_notes(
     for n in notes:
         lines.append(f"• <i>{n.created_at.strftime('%Y-%m-%d')}</i>: {escape_html(n.note_text)}")
 
-    lines.append(f"\n<i>Total notes: {len(notes)} | Clear using: <code>/delnotes {target.user_id}</code></i>")
+    lines.append(
+        f"\n<i>Total notes: {len(notes)} | Clear using: <code>/delnotes {target.user_id}</code></i>"
+    )
     await reply_with_ttl(message, "\n".join(lines), ttl_type=TTLType.MODERATION, custom_ttl=45)
 
 

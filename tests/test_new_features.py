@@ -43,7 +43,9 @@ def test_language_filter_regex():
 
     # Latin English
     assert not NON_ENGLISH_SCRIPT_REGEX.search("Hello world, how are you doing?")
-    assert not NON_ENGLISH_SCRIPT_REGEX.search("This is a clean English message with numbers 12345!")
+    assert not NON_ENGLISH_SCRIPT_REGEX.search(
+        "This is a clean English message with numbers 12345!"
+    )
 
 
 def test_elite_rank_tiers():

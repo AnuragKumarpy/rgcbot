@@ -30,7 +30,9 @@ class ZombieCleanerService:
         try:
             admins = await bot.get_chat_administrators(chat_id=chat_id)
             for adm in admins:
-                if adm.user.first_name == "Deleted Account" or getattr(adm.user, "is_deleted", False):
+                if adm.user.first_name == "Deleted Account" or getattr(
+                    adm.user, "is_deleted", False
+                ):
                     candidate_ids.add(adm.user.id)
                 elif not adm.user.is_bot:
                     # Check status
@@ -64,7 +66,11 @@ class ZombieCleanerService:
                     )
             except (TelegramBadRequest, TelegramForbiddenError) as e:
                 err_msg = str(e).lower()
-                if "user not found" in err_msg or "deleted" in err_msg or "participant_id_invalid" in err_msg:
+                if (
+                    "user not found" in err_msg
+                    or "deleted" in err_msg
+                    or "participant_id_invalid" in err_msg
+                ):
                     zombie_ids.append(uid)
             except Exception as e:
                 logger.debug(f"Error checking member {uid}: {e}")

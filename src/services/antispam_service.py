@@ -22,9 +22,7 @@ TG_INVITE_REGEX = re.compile(
 
 class AntiSpamService:
     @classmethod
-    async def check_flood(
-        cls, bot: Bot, group: Group, message: Message
-    ) -> bool:
+    async def check_flood(cls, bot: Bot, group: Group, message: Message) -> bool:
         """
         Returns True if message triggered flood control and was handled.
         """
@@ -35,8 +33,6 @@ class AntiSpamService:
         user_id = message.from_user.id
         limit = group.antiflood_limit or settings.default_flood_limit
         window = getattr(group, "antiflood_window_sec", None) or settings.default_flood_window
-
-
 
         try:
             redis = await redis_manager.get_client()
@@ -53,7 +49,9 @@ class AntiSpamService:
 
             if count > limit:
                 # Trigger flood mute for 10 minutes (600s)
-                logger.info(f"Flood detected for user {user_id} in {chat_id} ({count} msgs in {window}s)")
+                logger.info(
+                    f"Flood detected for user {user_id} in {chat_id} ({count} msgs in {window}s)"
+                )
                 await redis.delete(key)
 
                 # Delete flood message
@@ -65,12 +63,14 @@ class AntiSpamService:
                 # Mute user
                 mute_duration = 600
                 from src.models.user import User
+
                 target_user = User(
                     user_id=user_id,
                     username=message.from_user.username,
                     first_name=message.from_user.first_name,
                 )
                 from src.core.database import db
+
                 async for session in db.get_session():
                     await ModerationService.mute_user(
                         bot=bot,
@@ -88,9 +88,8 @@ class AntiSpamService:
                     f"🛑 {mention} has been muted for <b>10 minutes</b> for message flooding."
                 )
                 from src.middlewares.ttl import reply_with_ttl
-                await reply_with_ttl(
-                    message, warn_text, custom_ttl=10, delete_trigger=False
-                )
+
+                await reply_with_ttl(message, warn_text, custom_ttl=10, delete_trigger=False)
                 return True
         except Exception as e:
             logger.warning(f"Error checking flood for user {user_id} in {chat_id}: {e}")
@@ -98,9 +97,7 @@ class AntiSpamService:
         return False
 
     @classmethod
-    async def check_links_and_forwards(
-        cls, bot: Bot, group: Group, message: Message
-    ) -> bool:
+    async def check_links_and_forwards(cls, bot: Bot, group: Group, message: Message) -> bool:
         """
         Checks for unauthorized links or forwards if enabled in group settings.
         Returns True if violation was found and message was deleted.
@@ -118,6 +115,7 @@ class AntiSpamService:
                 await message.delete()
                 mention = get_user_mention(message.from_user)
                 from src.middlewares.ttl import reply_with_ttl
+
                 await reply_with_ttl(
                     message,
                     f"⚠️ {mention}, forwarded messages are not allowed in this group.",
@@ -135,6 +133,7 @@ class AntiSpamService:
                     await message.delete()
                     mention = get_user_mention(message.from_user)
                     from src.middlewares.ttl import reply_with_ttl
+
                     await reply_with_ttl(
                         message,
                         f"⚠️ {mention}, posting links or invites is restricted in this group.",

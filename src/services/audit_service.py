@@ -83,6 +83,7 @@ class AuditService:
         lines.append(f"<b>Time:</b> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
         from src.utils.emojis import animate_text
+
         text = animate_text("\n".join(lines))
 
         try:

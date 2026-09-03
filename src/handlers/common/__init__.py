@@ -10,4 +10,3 @@ common_router.include_router(errors_router)
 common_router.include_router(report_router)
 
 __all__ = ["common_router"]
-

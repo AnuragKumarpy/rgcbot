@@ -130,7 +130,6 @@ EMOJI_MAP = {
 }
 
 
-
 def animate_text(text: str) -> str:
     """Replaces standard Unicode emojis in HTML formatted strings with animated custom emoji tags."""
     if not text:

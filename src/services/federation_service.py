@@ -29,7 +29,9 @@ class FederationService:
         return res.scalars().first()
 
     @classmethod
-    async def get_group_federation(cls, session: AsyncSession, chat_id: int) -> Optional[Federation]:
+    async def get_group_federation(
+        cls, session: AsyncSession, chat_id: int
+    ) -> Optional[Federation]:
         stmt = (
             select(Federation)
             .join(FederationGroup, FederationGroup.fed_id == Federation.fed_id)
@@ -45,7 +47,9 @@ class FederationService:
             return False
 
         # Remove previous fed group link if exists
-        res = await session.execute(select(FederationGroup).where(FederationGroup.chat_id == chat_id))
+        res = await session.execute(
+            select(FederationGroup).where(FederationGroup.chat_id == chat_id)
+        )
         existing = res.scalars().first()
         if existing:
             await session.delete(existing)
@@ -58,7 +62,9 @@ class FederationService:
 
     @classmethod
     async def leave_federation(cls, session: AsyncSession, chat_id: int) -> bool:
-        res = await session.execute(select(FederationGroup).where(FederationGroup.chat_id == chat_id))
+        res = await session.execute(
+            select(FederationGroup).where(FederationGroup.chat_id == chat_id)
+        )
         existing = res.scalars().first()
         if existing:
             await session.delete(existing)
@@ -74,14 +80,18 @@ class FederationService:
         if fed.owner_id == user_id:
             return True
         res = await session.execute(
-            select(FederationAdmin).where(FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id)
+            select(FederationAdmin).where(
+                FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id
+            )
         )
         return bool(res.scalars().first())
 
     @classmethod
     async def promote_fed_admin(cls, session: AsyncSession, fed_id: str, user_id: int) -> bool:
         res = await session.execute(
-            select(FederationAdmin).where(FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id)
+            select(FederationAdmin).where(
+                FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id
+            )
         )
         if res.scalars().first():
             return True
@@ -93,7 +103,9 @@ class FederationService:
     @classmethod
     async def demote_fed_admin(cls, session: AsyncSession, fed_id: str, user_id: int) -> bool:
         res = await session.execute(
-            select(FederationAdmin).where(FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id)
+            select(FederationAdmin).where(
+                FederationAdmin.fed_id == fed_id, FederationAdmin.user_id == user_id
+            )
         )
         existing = res.scalars().first()
         if existing:
@@ -103,9 +115,13 @@ class FederationService:
         return False
 
     @classmethod
-    async def is_user_fed_banned(cls, session: AsyncSession, fed_id: str, user_id: int) -> Optional[FederationBan]:
+    async def is_user_fed_banned(
+        cls, session: AsyncSession, fed_id: str, user_id: int
+    ) -> Optional[FederationBan]:
         res = await session.execute(
-            select(FederationBan).where(FederationBan.fed_id == fed_id, FederationBan.user_id == user_id)
+            select(FederationBan).where(
+                FederationBan.fed_id == fed_id, FederationBan.user_id == user_id
+            )
         )
         return res.scalars().first()
 
@@ -121,7 +137,9 @@ class FederationService:
     ) -> int:
         """Bans user across all linked federation groups."""
         res = await session.execute(
-            select(FederationBan).where(FederationBan.fed_id == fed_id, FederationBan.user_id == user_id)
+            select(FederationBan).where(
+                FederationBan.fed_id == fed_id, FederationBan.user_id == user_id
+            )
         )
         f_ban = res.scalars().first()
         if not f_ban:
@@ -135,7 +153,9 @@ class FederationService:
             await session.commit()
 
         # Ban across all linked group chats
-        groups_res = await session.execute(select(FederationGroup.chat_id).where(FederationGroup.fed_id == fed_id))
+        groups_res = await session.execute(
+            select(FederationGroup.chat_id).where(FederationGroup.fed_id == fed_id)
+        )
         chat_ids = groups_res.scalars().all()
         banned_chats = 0
 
@@ -158,14 +178,18 @@ class FederationService:
     ) -> int:
         """Unbans user across all linked federation groups."""
         res = await session.execute(
-            select(FederationBan).where(FederationBan.fed_id == fed_id, FederationBan.user_id == user_id)
+            select(FederationBan).where(
+                FederationBan.fed_id == fed_id, FederationBan.user_id == user_id
+            )
         )
         f_ban = res.scalars().first()
         if f_ban:
             await session.delete(f_ban)
             await session.commit()
 
-        groups_res = await session.execute(select(FederationGroup.chat_id).where(FederationGroup.fed_id == fed_id))
+        groups_res = await session.execute(
+            select(FederationGroup.chat_id).where(FederationGroup.fed_id == fed_id)
+        )
         chat_ids = groups_res.scalars().all()
         unbanned_chats = 0
 

@@ -1,0 +1,129 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    env:
+      BOT_MODE: polling
+      BOT_SUPER_ADMINS: "[]"
+      DATABASE_URL: sqlite+aiosqlite:///./ci.db
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Lint
+        run: uv run ruff check src tests scripts
+
+      - name: Test
+        run: uv run pytest -q tests
+
+  deploy:
+    name: Deploy to EC2
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      WEBHOOK_HOST: ${{ vars.WEBHOOK_HOST }}
+      WEBHOOK_PATH: ${{ vars.WEBHOOK_PATH }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+
+    steps:
+      - name: Validate webhook domain
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${WEBHOOK_HOST:-}" ]]; then
+            echo "WEBHOOK_HOST must be set in GitHub Actions variables"
+            exit 1
+          fi
+
+          if [[ "${WEBHOOK_HOST}" != https://* ]]; then
+            echo "WEBHOOK_HOST must start with https://"
+            exit 1
+          fi
+
+          webhook_path="${WEBHOOK_PATH:-/webhook}"
+          webhook_url="${WEBHOOK_HOST%/}${webhook_path}"
+
+          curl -fsS --max-time 10 "${WEBHOOK_HOST%/}/health" >/dev/null
+
+          printf 'webhook_url=%s\n' "${webhook_url}" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: BOT_TOKEN,WEBHOOK_HOST,WEBHOOK_PATH,WEBHOOK_SECRET
+          script: |
+            cd /home/ubuntu/rgcbot
+            git pull origin main
+
+            webhook_path="${WEBHOOK_PATH:-/webhook}"
+
+            if [[ -f .env ]]; then
+              grep -vE '^(BOT_MODE|WEBHOOK_HOST|WEBHOOK_PATH|WEBHOOK_SECRET)=' .env > .env.tmp
+            else
+              : > .env.tmp
+            fi
+
+            {
+              echo "BOT_MODE=webhook"
+              echo "WEBHOOK_HOST=${WEBHOOK_HOST}"
+              echo "WEBHOOK_PATH=${webhook_path}"
+              if [[ -n "${WEBHOOK_SECRET:-}" ]]; then
+                echo "WEBHOOK_SECRET=${WEBHOOK_SECRET}"
+              fi
+            } >> .env.tmp
+
+            mv .env.tmp .env
+
+            uv sync --locked
+            docker compose up -d --build
+
+      - name: Confirm Telegram webhook registration
+        run: |
+          set -euo pipefail
+
+          export WEBHOOK_INFO="$(curl -fsS "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")"
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          payload = json.loads(os.environ["WEBHOOK_INFO"])
+          result = payload.get("result", {})
+          expected = os.environ["webhook_url"]
+
+          if not payload.get("ok"):
+            raise SystemExit("Telegram getWebhookInfo returned an error")
+
+          if result.get("url") != expected:
+            raise SystemExit(
+              f"Webhook URL mismatch: expected {expected}, got {result.get('url')}"
+            )
+
+          print(f"Verified Telegram webhook URL: {result.get('url')}")
+          PY

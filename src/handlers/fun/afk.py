@@ -64,10 +64,10 @@ async def handle_afk_listener(
     # 2. Check if replied user is AFK
     if session and message.reply_to_message and message.reply_to_message.from_user:
         replied_tg = message.reply_to_message.from_user
-        if not replied_tg.is_bot and replied_tg.id != (message.from_user.id if message.from_user else 0):
-            res = await session.execute(
-                select(User).where(User.user_id == replied_tg.id)
-            )
+        if not replied_tg.is_bot and replied_tg.id != (
+            message.from_user.id if message.from_user else 0
+        ):
+            res = await session.execute(select(User).where(User.user_id == replied_tg.id))
             replied_user = res.scalar_one_or_none()
             if replied_user and replied_user.is_afk:
                 since_str = ""
