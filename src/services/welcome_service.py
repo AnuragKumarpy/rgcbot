@@ -48,7 +48,24 @@ class WelcomeService:
             return None
 
         formatted_caption = cls.format_welcome_text(group.welcome_text, user, group)
-        kb = cls.parse_welcome_buttons(group.welcome_buttons)
+
+        # Attach green Check Rules button on downside of welcome message
+        bot_info = await bot.get_me()
+        rules_url = f"https://t.me/{bot_info.username}?start=rules_{group.chat_id}"
+        rules_btn = InlineKeyboardButton(
+            text="🟢 Check Rules",
+            url=rules_url,
+            style="success",
+            icon_custom_emoji_id="5237699328843200968",
+        )
+
+        custom_kb = cls.parse_welcome_buttons(group.welcome_buttons)
+        if custom_kb and custom_kb.inline_keyboard:
+            rows = [list(r) for r in custom_kb.inline_keyboard]
+            rows.append([rules_btn])
+            kb = InlineKeyboardMarkup(inline_keyboard=rows)
+        else:
+            kb = InlineKeyboardMarkup(inline_keyboard=[[rules_btn]])
 
         sent_msg = None
         try:

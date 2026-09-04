@@ -639,29 +639,7 @@ async def handle_rules(
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
 
-    bot_info = await message.bot.get_me()
-    check_rules_url = f"https://t.me/{bot_info.username}?start=rules_{db_group.chat_id}"
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🟢 Check Rules",
-                    url=check_rules_url,
-                    style="success",
-                    icon_custom_emoji_id="5237699328843200968",
-                ),
-                InlineKeyboardButton(
-                    text="📖 View Here",
-                    callback_data=f"rules:view:{db_group.chat_id}",
-                    style="primary",
-                    icon_custom_emoji_id="5434144690511290129",
-                ),
-            ]
-        ]
-    )
-
-    if not db_group.rules_text:
+    if not db_group.rules_text and not db_group.rules_media_file_id:
         await reply_with_ttl(
             message,
             animate_text(
@@ -673,64 +651,34 @@ async def handle_rules(
         )
         return
 
-    formatted_rules = animate_text(format_rules_text(db_group.title, db_group.rules_text, include_footer=False))
+    bot_info = await message.bot.get_me()
+    check_rules_url = f"https://t.me/{bot_info.username}?start=rules_{db_group.chat_id}"
 
-    try:
-        if db_group.rules_media_type == "photo" and db_group.rules_media_file_id:
-            await message.reply_photo(
-                photo=db_group.rules_media_file_id,
-                caption=formatted_rules,
-                reply_markup=kb,
-                parse_mode="HTML",
-            )
-        elif db_group.rules_media_type == "video" and db_group.rules_media_file_id:
-            await message.reply_video(
-                video=db_group.rules_media_file_id,
-                caption=formatted_rules,
-                reply_markup=kb,
-                parse_mode="HTML",
-            )
-        elif db_group.rules_media_type == "animation" and db_group.rules_media_file_id:
-            await message.reply_animation(
-                animation=db_group.rules_media_file_id,
-                caption=formatted_rules,
-                reply_markup=kb,
-                parse_mode="HTML",
-            )
-        elif db_group.rules_media_type == "document" and db_group.rules_media_file_id:
-            await message.reply_document(
-                document=db_group.rules_media_file_id,
-                caption=formatted_rules,
-                reply_markup=kb,
-                parse_mode="HTML",
-            )
-        else:
-            await message.reply(
-                text=formatted_rules,
-                reply_markup=kb,
-                parse_mode="HTML",
-                disable_web_page_preview=False,
-            )
-    except Exception as e:
-        await message.reply(formatted_rules, reply_markup=kb, parse_mode="HTML")
+    # If rules consist of media, redirect to DM with a single clean button
+    if db_group.rules_media_type and db_group.rules_media_file_id:
+        single_btn_kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🟢 Check Rules (View Media)",
+                        url=check_rules_url,
+                        style="success",
+                        icon_custom_emoji_id="5237699328843200968",
+                    )
+                ]
+            ]
+        )
+        redirect_text = animate_text(
+            f"{E_DIAMOND} <b>Group Rules for {escape_html(db_group.title)}</b>\n\n"
+            f"📜 <i>The official guidelines for this group contain rich media.\n"
+            f"Tap the button below to view the full rules & media in DM:</i>"
+        )
+        await reply_with_ttl(message, redirect_text, reply_markup=single_btn_kb, ttl_type=TTLType.RULES, custom_ttl=60)
+        return
 
-
-@router.callback_query(F.data.startswith("rules:view:"))
-async def handle_rules_callback(
-    call: CallbackQuery,
-    session: Optional[AsyncSession] = None,
-):
-    chat_id = int(call.data.split(":")[-1])
-    if session:
-        res = await session.execute(select(Group).where(Group.chat_id == chat_id))
-        group = res.scalars().first()
-        if group and group.rules_text:
-            text = f"📜 Rules for {group.title}:\n\n{group.rules_text}"
-            if len(text) > 190:
-                text = text[:187] + "..."
-            await call.answer(text, show_alert=True)
-            return
-    await call.answer("No custom rules configured yet.", show_alert=True)
+    # If text-only rules, output directly in group chat
+    formatted_rules = animate_text(format_rules_text(db_group.title, db_group.rules_text or "No rules specified.", include_footer=False))
+    await reply_with_ttl(message, formatted_rules, ttl_type=TTLType.RULES, custom_ttl=60)
 
 
 @router.message(Command("setrules"))
