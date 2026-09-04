@@ -78,6 +78,15 @@ async def get_network_metrics(session: AsyncSession):
     return max(mau, 1), active_groups, total_users
 
 
+def format_rules_text(group_title: str, rules_content: str, include_footer: bool = False) -> str:
+    clean_title = escape_html(group_title)
+    clean_rules = rules_content.strip()
+    has_branding = ("elitebots" in clean_rules.lower()) or ("powered by" in clean_rules.lower())
+    if include_footer and not has_branding:
+        return f"{E_DIAMOND} <b>Group Rules for {clean_title}:</b>\n\n{clean_rules}\n\n{POWERED_BY_FOOTER}"
+    return f"{E_DIAMOND} <b>Group Rules for {clean_title}:</b>\n\n{clean_rules}"
+
+
 @router.message(CommandStart())
 async def handle_start(
     message: Message,
@@ -132,8 +141,7 @@ async def handle_start(
                     )
                     group = res_g.scalars().first()
                     if group and group.rules_text:
-                        rules_header = f"{E_DIAMOND} <b>Group Rules for {escape_html(group.title)}:</b>\n\n{group.rules_text}\n\n{POWERED_BY_FOOTER}"
-                        formatted_rules = animate_text(rules_header)
+                        formatted_rules = animate_text(format_rules_text(group.title, group.rules_text, include_footer=True))
                         if group.rules_media_type == "photo" and group.rules_media_file_id:
                             await message.answer_photo(
                                 photo=group.rules_media_file_id,
@@ -203,8 +211,7 @@ async def handle_start(
             message,
             animate_text(
                 f"👋 Hi {mention}! RGCBot is active in <b>{escape_html(message.chat.title)}</b> {E_SHIELD}\n"
-                f"Type <code>/help</code> or <code>/settings</code> for group management.\n\n"
-                f"{POWERED_BY_FOOTER}"
+                f"Type <code>/help</code> or <code>/settings</code> for group management."
             ),
             ttl_type=TTLType.GENERAL,
         )
@@ -659,16 +666,14 @@ async def handle_rules(
             message,
             animate_text(
                 f"{E_NEWS} <i>No custom rules configured yet for <b>{escape_html(db_group.title)}</b>.\n"
-                f"Admins can configure them with <code>/setrules &lt;text | reply to media/post&gt;</code></i>\n\n"
-                f"{POWERED_BY_FOOTER}"
+                f"Admins can configure them with <code>/setrules &lt;text | reply to media/post&gt;</code></i>"
             ),
             ttl_type=TTLType.RULES,
             custom_ttl=45,
         )
         return
 
-    rules_header = f"{E_DIAMOND} <b>Group Rules for {escape_html(db_group.title)}:</b>\n\n{db_group.rules_text}\n\n{POWERED_BY_FOOTER}"
-    formatted_rules = animate_text(rules_header)
+    formatted_rules = animate_text(format_rules_text(db_group.title, db_group.rules_text, include_footer=False))
 
     try:
         if db_group.rules_media_type == "photo" and db_group.rules_media_file_id:
@@ -779,8 +784,7 @@ async def handle_set_rules(
             help_text = animate_text(
                 f"{E_ALERT} <b>How to Configure Group Rules:</b>\n\n"
                 f"1. <b>Text/Links:</b> <code>/setrules &lt;your rules text with links/formatting&gt;</code>\n"
-                f"2. <b>Rich Media:</b> Reply to any Photo, Video, GIF, Document, or Post with <code>/setrules</code>\n\n"
-                f"{POWERED_BY_FOOTER}"
+                f"2. <b>Rich Media:</b> Reply to any Photo, Video, GIF, Document, or Post with <code>/setrules</code>"
             )
             await reply_with_ttl(message, help_text, ttl_type=TTLType.MODERATION)
             return
@@ -813,7 +817,7 @@ async def handle_set_rules(
             ("Interactive Button", "🟢 Check Rules (Active)"),
             ("Status", "✅ Saved & Operational"),
         ],
-        footer=f"Members can view the rules via /rules\n\n{POWERED_BY_FOOTER}",
+        footer="Members can view the rules via /rules",
     )
     await reply_with_ttl(message, animate_text(card), ttl_type=TTLType.MODERATION)
 
@@ -840,7 +844,7 @@ async def handle_clear_rules(
 
     await reply_with_ttl(
         message,
-        animate_text(f"{E_CHECK} <b>Group rules have been cleared and reset.</b>\n\n{POWERED_BY_FOOTER}"),
+        animate_text(f"{E_CHECK} <b>Group rules have been cleared and reset.</b>"),
         ttl_type=TTLType.MODERATION,
     )
 

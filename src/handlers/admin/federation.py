@@ -39,7 +39,7 @@ async def handle_fcreate(message: Message, session: Optional[AsyncSession] = Non
             message,
             f"{E_WARN} <b>Usage:</b> <code>/fcreate &lt;Federation Name&gt;</code>\n"
             "<i>Creates a new shared security federation for your supergroup network.</i>\n\n"
-            f"{POWERED_BY_FOOTER}",
+            f"",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -86,7 +86,7 @@ async def handle_fjoin(
     if len(parts) < 2 or not parts[1].strip():
         await reply_with_ttl(
             message,
-            f"{E_WARN} <b>Usage:</b> <code>/fjoin &lt;fed_id&gt;</code>\n\n{POWERED_BY_FOOTER}",
+            f"{E_WARN} <b>Usage:</b> <code>/fjoin &lt;fed_id&gt;</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -108,7 +108,7 @@ async def handle_fjoin(
             f"{E_CHECK} <b>Group Linked to Federation!</b>\n\n"
             f"• <b>Federation:</b> <b>{escape_html(fed.name)}</b> [<code>{fed.fed_id}</code>]\n"
             f"• <b>Shared Protection:</b> Any <code>/fban</code> will instantly sync to this group.\n\n"
-            f"{POWERED_BY_FOOTER}"
+            f""
         ),
         ttl_type=TTLType.MODERATION,
         custom_ttl=45,
@@ -135,7 +135,7 @@ async def handle_fleave(
     if left:
         await reply_with_ttl(
             message,
-            f"{E_CHECK} <b>Group unlinked from federation successfully.</b>\n\n{POWERED_BY_FOOTER}",
+            f"{E_CHECK} <b>Group unlinked from federation successfully.</b>",
             ttl_type=TTLType.MODERATION,
         )
     else:
@@ -160,7 +160,7 @@ async def handle_finfo(message: Message, session: Optional[AsyncSession] = None)
             if not fed:
                 await reply_with_ttl(
                     message,
-                    f"<i>This group is not linked to any federation. Link with <code>/fjoin &lt;fed_id&gt;</code></i>\n\n{POWERED_BY_FOOTER}",
+                    f"<i>This group is not linked to any federation. Link with <code>/fjoin &lt;fed_id&gt;</code></i>",
                     ttl_type=TTLType.MODERATION,
                 )
                 return
@@ -168,7 +168,7 @@ async def handle_finfo(message: Message, session: Optional[AsyncSession] = None)
         else:
             await reply_with_ttl(
                 message,
-                f"{E_WARN} <b>Usage:</b> <code>/finfo &lt;fed_id&gt;</code>\n\n{POWERED_BY_FOOTER}",
+                f"{E_WARN} <b>Usage:</b> <code>/finfo &lt;fed_id&gt;</code>",
                 ttl_type=TTLType.MODERATION,
             )
             return
@@ -203,7 +203,7 @@ async def handle_fban(
     if not fed:
         await reply_with_ttl(
             message,
-            f"❌ <b>This group is not linked to any federation.</b>\nLink with <code>/fjoin &lt;fed_id&gt;</code>\n\n{POWERED_BY_FOOTER}",
+            f"❌ <b>This group is not linked to any federation.</b>\nLink with <code>/fjoin &lt;fed_id&gt;</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -220,7 +220,7 @@ async def handle_fban(
     if not target or not target.user_id:
         await reply_with_ttl(
             message,
-            f"{E_WARN} <b>Usage:</b> <code>/fban &lt;user&gt; [reason]</code>\n\n{POWERED_BY_FOOTER}",
+            f"{E_WARN} <b>Usage:</b> <code>/fban &lt;user&gt; [reason]</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -266,7 +266,7 @@ async def handle_funban(
     if not fed:
         await reply_with_ttl(
             message,
-            f"❌ <b>This group is not linked to any federation.</b>\n\n{POWERED_BY_FOOTER}",
+            f"❌ <b>This group is not linked to any federation.</b>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -282,7 +282,7 @@ async def handle_funban(
     if not target or not target.user_id:
         await reply_with_ttl(
             message,
-            f"{E_WARN} <b>Usage:</b> <code>/funban &lt;user&gt;</code>\n\n{POWERED_BY_FOOTER}",
+            f"{E_WARN} <b>Usage:</b> <code>/funban &lt;user&gt;</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -299,7 +299,7 @@ async def handle_funban(
             f"• <b>User:</b> {mention_html(target.user_id, target.first_name)} (<code>{target.user_id}</code>)\n"
             f"• <b>Federation:</b> <b>{escape_html(fed.name)}</b>\n"
             f"• <b>Unbanned across:</b> {unbanned_chats} linked supergroups\n\n"
-            f"{POWERED_BY_FOOTER}"
+            f""
         ),
         ttl_type=TTLType.MODERATION,
         custom_ttl=45,
@@ -314,7 +314,7 @@ async def handle_fpromote(message: Message, session: Optional[AsyncSession] = No
     if not fed:
         await reply_with_ttl(
             message,
-            f"❌ <b>This group is not linked to any federation.</b>\n\n{POWERED_BY_FOOTER}",
+            f"❌ <b>This group is not linked to any federation.</b>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -329,7 +329,7 @@ async def handle_fpromote(message: Message, session: Optional[AsyncSession] = No
     if not target or not target.user_id:
         await reply_with_ttl(
             message,
-            f"{E_WARN} <b>Usage:</b> <code>/fpromote &lt;user&gt;</code>\n\n{POWERED_BY_FOOTER}",
+            f"{E_WARN} <b>Usage:</b> <code>/fpromote &lt;user&gt;</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -341,7 +341,7 @@ async def handle_fpromote(message: Message, session: Optional[AsyncSession] = No
             f"• <b>User:</b> {mention_html(target.user_id, target.first_name)} [<code>{target.user_id}</code>]\n"
             f"• <b>Federation:</b> <b>{escape_html(fed.name)}</b> [<code>{fed.fed_id}</code>]\n"
             f"• <b>Permissions:</b> Authorized to execute global <code>/fban</code> and <code>/funban</code>.\n\n"
-            f"{POWERED_BY_FOOTER}"
+            f""
         ),
         ttl_type=TTLType.MODERATION,
         custom_ttl=60,
@@ -356,7 +356,7 @@ async def handle_fdemote(message: Message, session: Optional[AsyncSession] = Non
     if not fed:
         await reply_with_ttl(
             message,
-            f"❌ <b>This group is not linked to any federation.</b>\n\n{POWERED_BY_FOOTER}",
+            f"❌ <b>This group is not linked to any federation.</b>",
             ttl_type=TTLType.MODERATION,
         )
         return
@@ -371,13 +371,13 @@ async def handle_fdemote(message: Message, session: Optional[AsyncSession] = Non
     if not target or not target.user_id:
         await reply_with_ttl(
             message,
-            f"{E_WARN} <b>Usage:</b> <code>/fdemote &lt;user&gt;</code>\n\n{POWERED_BY_FOOTER}",
+            f"{E_WARN} <b>Usage:</b> <code>/fdemote &lt;user&gt;</code>",
             ttl_type=TTLType.MODERATION,
         )
         return
     await FederationService.demote_fed_admin(session, fed_id=fed.fed_id, user_id=target.user_id)
     await reply_with_ttl(
         message,
-        f"{E_CHECK} <b>Demoted from Federation Admin:</b> {mention_html(target.user_id, target.first_name)}\n\n{POWERED_BY_FOOTER}",
+        f"{E_CHECK} <b>Demoted from Federation Admin:</b> {mention_html(target.user_id, target.first_name)}",
         ttl_type=TTLType.MODERATION,
     )
