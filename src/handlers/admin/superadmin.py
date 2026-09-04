@@ -471,8 +471,6 @@ async def handle_broadcast(
 ):
     if not message.from_user or not is_super_admin(message.from_user.id):
         return
-    if not session:
-        return
     tokens = message.text.split() if message.text else []
     target_type = "all"
     pin = False
@@ -497,46 +495,27 @@ async def handle_broadcast(
         help_text = (
             "<b>Usage:</b>\n"
             "• <code>/broadcast -all [pin] &lt;message text&gt;</code>\n"
-            "• Or reply to any Photo/Video/GIF/Sticker/Text with <code>/broadcast -all</code>"
+            "• <code>/broadcast -users &lt;message text&gt;</code>\n"
+            "• <code>/broadcast -groups &lt;message text&gt;</code>\n"
+            "• Or reply to any Photo/Video/GIF/Sticker/Audio/Text with <code>/broadcast -all</code>"
         )
         await message.answer(help_text, parse_mode="HTML")
         return
+
     progress_msg = await message.answer(
-        f"{E_LIGHTNING} <b>Broadcasting in progress...</b>", parse_mode="HTML"
+        f"⚡ <b>Initializing Parallel Broadcast...</b>\n\n"
+        f"• <b>Scope:</b> <code>{target_type.upper()}</code>\n"
+        f"• <b>Status:</b> <i>Spinning up background worker pool...</i>\n\n"
+        f"<i>Bot remains 100% active and responsive during dispatch.</i>",
+        parse_mode="HTML",
     )
-    # If replying to a message, copy directly or use BroadcastService
-    if message.reply_to_message:
-        success_cnt, fail_cnt = await BroadcastService.execute_broadcast_copy(
-            bot=message.bot,
-            session=session,
-            admin_id=message.from_user.id,
-            target_type=target_type,
-            source_message=message.reply_to_message,
-            pin=pin,
-            status_msg=progress_msg,
-        )
-    else:
-        success_cnt, fail_cnt = await BroadcastService.execute_broadcast(
-            bot=message.bot,
-            session=session,
-            admin_id=message.from_user.id,
-            target_type=target_type,
-            text=raw_text,
-            pin=pin,
-            status_msg=progress_msg,
-        )
-    card = format_card(
-        title=f"{E_NEWS} BROADCAST DISPATCH REPORT",
-        fields=[
-            ("Target Scope", f"<code>{target_type.upper()}</code>"),
-            ("Successfully Delivered", f"<b>{success_cnt:,}</b> ✅"),
-            ("Failed / Blocked", f"<b>{fail_cnt:,}</b> ❌"),
-            ("Pinned in Groups", "YES 📌" if pin else "NO"),
-            ("Status", "🟢 100% Completed"),
-        ],
-        footer=POWERED_BY_FOOTER,
+
+    await BroadcastService.start_background_broadcast(
+        bot=message.bot,
+        admin_id=message.from_user.id,
+        target_type=target_type,
+        text=raw_text if raw_text else None,
+        source_message=message.reply_to_message,
+        pin=pin,
+        status_msg=progress_msg,
     )
-    try:
-        await progress_msg.edit_text(card, parse_mode="HTML")
-    except Exception:
-        await message.answer(card, parse_mode="HTML")
