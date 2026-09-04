@@ -513,6 +513,7 @@ async def handle_broadcast(
             target_type=target_type,
             source_message=message.reply_to_message,
             pin=pin,
+            status_msg=progress_msg,
         )
     else:
         success_cnt, fail_cnt = await BroadcastService.execute_broadcast(
@@ -522,18 +523,20 @@ async def handle_broadcast(
             target_type=target_type,
             text=raw_text,
             pin=pin,
+            status_msg=progress_msg,
         )
     card = format_card(
         title=f"{E_NEWS} BROADCAST DISPATCH REPORT",
         fields=[
             ("Target Scope", f"<code>{target_type.upper()}</code>"),
-            ("Successfully Delivered", f"<b>{success_cnt:,}</b>"),
-            ("Failed / Blocked", f"<b>{fail_cnt:,}</b>"),
-            ("Pinned", "YES" if pin else "NO"),
+            ("Successfully Delivered", f"<b>{success_cnt:,}</b> ✅"),
+            ("Failed / Blocked", f"<b>{fail_cnt:,}</b> ❌"),
+            ("Pinned in Groups", "YES 📌" if pin else "NO"),
+            ("Status", "🟢 100% Completed"),
         ],
+        footer=POWERED_BY_FOOTER,
     )
     try:
-        await progress_msg.delete()
+        await progress_msg.edit_text(card, parse_mode="HTML")
     except Exception:
-        pass
-    await message.answer(card, parse_mode="HTML")
+        await message.answer(card, parse_mode="HTML")

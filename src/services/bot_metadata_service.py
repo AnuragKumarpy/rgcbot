@@ -3,7 +3,7 @@ from aiogram.types import (
     BotCommand,
     BotCommandScopeAllChatAdministrators,
     BotCommandScopeAllGroupChats,
-    BotCommandScopeDefault,
+    BotCommandScopeDefault, BotCommandScopeChat,
 )
 from loguru import logger
 
@@ -161,16 +161,29 @@ async def setup_bot_metadata(bot: Bot):
             BotCommand(command="filter", description="Add keyword auto-reply trigger"),
             BotCommand(command="filters", description="List active group filters"),
             BotCommand(command="helpadmin", description="Admin control manual"),
-            BotCommand(command="adminpanel", description="Open super admin panel"),
-            BotCommand(command="superadmin", description="Open super admin panel"),
-            BotCommand(command="broadcast", description="Broadcast to users or groups"),
-            BotCommand(command="gcast", description="Broadcast to groups only"),
+
         ]
         await bot.set_my_commands(
             commands=admin_commands,
             scope=BotCommandScopeAllChatAdministrators(),
         )
         logger.info("Administrator bot commands registered.")
+
+        # 7. Super Admin Commands (Exclusive to configured Super Admins)
+        super_commands = admin_commands + [
+            BotCommand(command="adminpanel", description="👑 Super Admin Master Dashboard"),
+            BotCommand(command="broadcast", description="📢 Global Broadcast Engine"),
+            BotCommand(command="gcast", description="📢 Fast Group Broadcast"),
+        ]
+        for sa_id in settings.bot_super_admins:
+            try:
+                await bot.set_my_commands(
+                    commands=super_commands,
+                    scope=BotCommandScopeChat(chat_id=sa_id),
+                )
+            except Exception as e:
+                logger.warning(f"Could not set superadmin scope for {sa_id}: {e}")
+
 
     except Exception as e:
         logger.error(f"Failed to set bot commands: {e}")
