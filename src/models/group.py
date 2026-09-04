@@ -62,6 +62,8 @@ class Group(Base):
     # Rules
     rules_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     rules_button_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    rules_media_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # photo, video, animation, document
+    rules_media_file_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

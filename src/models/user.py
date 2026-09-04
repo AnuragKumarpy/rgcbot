@@ -21,6 +21,11 @@ class User(Base):
     games_won: Mapped[int] = mapped_column(Integer, default=0)
     game_score: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
+    # DM & Broadcast Reachability
+    is_dm_active: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    has_started_bot: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Customization & Flairs
     custom_title: Mapped[str | None] = mapped_column(String(64), nullable=True)
     badges: Mapped[str] = mapped_column(String(255), default="⭐ Member")

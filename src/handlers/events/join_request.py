@@ -161,9 +161,24 @@ async def handle_join_request_approval(
         # 1. Approve join request
         await call.bot.approve_chat_join_request(chat_id=chat_id, user_id=target_user_id)
 
-        # 2. Mark in Redis that user was verified via DM so they won't get double-verified in group
+        # 2. Mark in Redis and DB that user was verified via DM
         redis = await redis_manager.get_client()
         await redis.set(f"rgcbot:verified_dm:{chat_id}:{target_user_id}", "1", ex=300)
+        try:
+            from src.core.database import db
+            from src.models.user import User
+            from datetime import datetime
+            async for session in db.get_session():
+                u_res = await session.execute(select(User).where(User.user_id == target_user_id))
+                u = u_res.scalars().first()
+                if u:
+                    u.is_dm_active = True
+                    u.has_started_bot = True
+                    u.last_active_at = datetime.utcnow()
+                    await session.commit()
+                break
+        except Exception:
+            pass
 
         success_text = animate_text(
             f"{E_CHECK} <b>Verification Successful!</b>\n\n"
@@ -221,9 +236,24 @@ async def handle_join_request_math_approval(
         # 1. Approve join request
         await call.bot.approve_chat_join_request(chat_id=chat_id, user_id=target_user_id)
 
-        # 2. Mark in Redis that user was verified via DM so they won't get double-verified in group
+        # 2. Mark in Redis and DB that user was verified via DM
         redis = await redis_manager.get_client()
         await redis.set(f"rgcbot:verified_dm:{chat_id}:{target_user_id}", "1", ex=300)
+        try:
+            from src.core.database import db
+            from src.models.user import User
+            from datetime import datetime
+            async for session in db.get_session():
+                u_res = await session.execute(select(User).where(User.user_id == target_user_id))
+                u = u_res.scalars().first()
+                if u:
+                    u.is_dm_active = True
+                    u.has_started_bot = True
+                    u.last_active_at = datetime.utcnow()
+                    await session.commit()
+                break
+        except Exception:
+            pass
 
         success_text = animate_text(
             f"{E_CHECK} <b>Correct Answer & Verification Successful!</b>\n\n"

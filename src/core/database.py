@@ -155,6 +155,31 @@ class DatabaseManager:
                             "ALTER TABLE users ADD COLUMN IF NOT EXISTS game_score INTEGER DEFAULT 0;"
                         )
                     )
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dm_active BOOLEAN DEFAULT FALSE;"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE users ADD COLUMN IF NOT EXISTS has_started_bot BOOLEAN DEFAULT FALSE;"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITHOUT TIME ZONE;"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE groups ADD COLUMN IF NOT EXISTS rules_media_type VARCHAR(32);"
+                        )
+                    )
+                    await conn.execute(
+                        text(
+                            "ALTER TABLE groups ADD COLUMN IF NOT EXISTS rules_media_file_id VARCHAR(512);"
+                        )
+                    )
                 except Exception as e:
                     logger.debug(f"Column migration check note: {e}")
 

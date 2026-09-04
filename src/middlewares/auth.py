@@ -48,6 +48,8 @@ async def _upsert_user(session: AsyncSession, tg_user, chat_obj) -> User:
     result = await session.execute(select(User).where(User.user_id == tg_user.id))
     db_user = result.scalars().first()
 
+    is_private = bool(chat_obj and (getattr(chat_obj, "type", None) in (ChatType.PRIVATE, "private")))
+
     if db_user is None:
         stmt = (
             pg_insert(User)
@@ -56,6 +58,9 @@ async def _upsert_user(session: AsyncSession, tg_user, chat_obj) -> User:
                 username=tg_user.username,
                 first_name=tg_user.first_name or "",
                 last_name=tg_user.last_name,
+                is_dm_active=is_private,
+                has_started_bot=is_private,
+                last_active_at=datetime.utcnow(),
             )
             .on_conflict_do_nothing(index_elements=["user_id"])
         )
@@ -64,6 +69,11 @@ async def _upsert_user(session: AsyncSession, tg_user, chat_obj) -> User:
         result = await session.execute(select(User).where(User.user_id == tg_user.id))
         db_user = result.scalars().first()
         return db_user
+
+    if is_private:
+        db_user.is_dm_active = True
+        db_user.has_started_bot = True
+    db_user.last_active_at = datetime.utcnow()
 
     if db_user.username != tg_user.username or db_user.first_name != (tg_user.first_name or ""):
         old_username = db_user.username

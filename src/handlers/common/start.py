@@ -123,6 +123,56 @@ async def handle_start(
                         return
             except Exception:
                 pass
+        elif args.startswith("rules_"):
+            try:
+                target_chat_id = int(args.replace("rules_", ""))
+                if session:
+                    res_g = await session.execute(
+                        select(Group).where(Group.chat_id == target_chat_id)
+                    )
+                    group = res_g.scalars().first()
+                    if group and group.rules_text:
+                        rules_header = f"{E_DIAMOND} <b>Group Rules for {escape_html(group.title)}:</b>\n\n{group.rules_text}\n\n{POWERED_BY_FOOTER}"
+                        formatted_rules = animate_text(rules_header)
+                        if group.rules_media_type == "photo" and group.rules_media_file_id:
+                            await message.answer_photo(
+                                photo=group.rules_media_file_id,
+                                caption=formatted_rules,
+                                parse_mode="HTML",
+                            )
+                        elif group.rules_media_type == "video" and group.rules_media_file_id:
+                            await message.answer_video(
+                                video=group.rules_media_file_id,
+                                caption=formatted_rules,
+                                parse_mode="HTML",
+                            )
+                        elif group.rules_media_type == "animation" and group.rules_media_file_id:
+                            await message.answer_animation(
+                                animation=group.rules_media_file_id,
+                                caption=formatted_rules,
+                                parse_mode="HTML",
+                            )
+                        elif group.rules_media_type == "document" and group.rules_media_file_id:
+                            await message.answer_document(
+                                document=group.rules_media_file_id,
+                                caption=formatted_rules,
+                                parse_mode="HTML",
+                            )
+                        else:
+                            await message.answer(
+                                text=formatted_rules,
+                                parse_mode="HTML",
+                                disable_web_page_preview=False,
+                            )
+                        return
+                    else:
+                        await message.answer(
+                            f"{E_NEWS} <i>No custom rules have been configured for this group yet.</i>",
+                            parse_mode="HTML",
+                        )
+                        return
+            except Exception:
+                pass
 
     if message.chat.type == ChatType.PRIVATE:
         mau, active_groups, total_users = (1, 0, 1)
@@ -582,20 +632,100 @@ async def handle_rules(
         await message.answer("⚠️ This command can only be used in a supergroup.")
         return
 
+    bot_info = await message.bot.get_me()
+    check_rules_url = f"https://t.me/{bot_info.username}?start=rules_{db_group.chat_id}"
+
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🟢 Check Rules",
+                    url=check_rules_url,
+                    style="success",
+                    icon_custom_emoji_id="5237699328843200968",
+                ),
+                InlineKeyboardButton(
+                    text="📖 View Here",
+                    callback_data=f"rules:view:{db_group.chat_id}",
+                    style="primary",
+                    icon_custom_emoji_id="5434144690511290129",
+                ),
+            ]
+        ]
+    )
+
     if not db_group.rules_text:
         await reply_with_ttl(
             message,
             animate_text(
-                f"{E_NEWS} <i>No custom rules have been set for this group yet. Admins can set them with <code>/setrules &lt;text&gt;</code></i>\n\n{POWERED_BY_FOOTER}"
+                f"{E_NEWS} <i>No custom rules configured yet for <b>{escape_html(db_group.title)}</b>.\n"
+                f"Admins can configure them with <code>/setrules &lt;text | reply to media/post&gt;</code></i>\n\n"
+                f"{POWERED_BY_FOOTER}"
             ),
             ttl_type=TTLType.RULES,
+            custom_ttl=45,
         )
         return
 
-    text = animate_text(
-        f"{E_NEWS} <b>Group Rules for {escape_html(db_group.title)}:</b>\n\n{escape_html(db_group.rules_text)}\n\n{POWERED_BY_FOOTER}"
-    )
-    await reply_with_ttl(message, text, ttl_type=TTLType.RULES, custom_ttl=60)
+    rules_header = f"{E_DIAMOND} <b>Group Rules for {escape_html(db_group.title)}:</b>\n\n{db_group.rules_text}\n\n{POWERED_BY_FOOTER}"
+    formatted_rules = animate_text(rules_header)
+
+    try:
+        if db_group.rules_media_type == "photo" and db_group.rules_media_file_id:
+            await message.reply_photo(
+                photo=db_group.rules_media_file_id,
+                caption=formatted_rules,
+                reply_markup=kb,
+                parse_mode="HTML",
+            )
+        elif db_group.rules_media_type == "video" and db_group.rules_media_file_id:
+            await message.reply_video(
+                video=db_group.rules_media_file_id,
+                caption=formatted_rules,
+                reply_markup=kb,
+                parse_mode="HTML",
+            )
+        elif db_group.rules_media_type == "animation" and db_group.rules_media_file_id:
+            await message.reply_animation(
+                animation=db_group.rules_media_file_id,
+                caption=formatted_rules,
+                reply_markup=kb,
+                parse_mode="HTML",
+            )
+        elif db_group.rules_media_type == "document" and db_group.rules_media_file_id:
+            await message.reply_document(
+                document=db_group.rules_media_file_id,
+                caption=formatted_rules,
+                reply_markup=kb,
+                parse_mode="HTML",
+            )
+        else:
+            await message.reply(
+                text=formatted_rules,
+                reply_markup=kb,
+                parse_mode="HTML",
+                disable_web_page_preview=False,
+            )
+    except Exception as e:
+        await message.reply(formatted_rules, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data.startswith("rules:view:"))
+async def handle_rules_callback(
+    call: CallbackQuery,
+    session: Optional[AsyncSession] = None,
+):
+    chat_id = int(call.data.split(":")[-1])
+    if session:
+        res = await session.execute(select(Group).where(Group.chat_id == chat_id))
+        group = res.scalars().first()
+        if group and group.rules_text:
+            text = f"📜 Rules for {group.title}:\n\n{group.rules_text}"
+            if len(text) > 190:
+                text = text[:187] + "..."
+            await call.answer(text, show_alert=True)
+            return
+    await call.answer("No custom rules configured yet.", show_alert=True)
 
 
 @router.message(Command("setrules"))
@@ -613,19 +743,53 @@ async def handle_set_rules(
         await message.answer("❌ Only administrators can configure group rules.")
         return
 
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        await reply_with_ttl(
-            message,
-            animate_text(
-                f"⚠️ Usage: <code>/setrules &lt;rules text in HTML or plain format&gt;</code>\n\n{POWERED_BY_FOOTER}"
-            ),
-            ttl_type=TTLType.MODERATION,
-        )
-        return
+    media_type = None
+    media_file_id = None
+    rules_text = None
 
-    new_rules = parts[1].strip()
-    db_group.rules_text = new_rules
+    if message.reply_to_message:
+        replied = message.reply_to_message
+        if replied.photo:
+            media_type = "photo"
+            media_file_id = replied.photo[-1].file_id
+            rules_text = replied.caption or ""
+        elif replied.video:
+            media_type = "video"
+            media_file_id = replied.video.file_id
+            rules_text = replied.caption or ""
+        elif replied.animation:
+            media_type = "animation"
+            media_file_id = replied.animation.file_id
+            rules_text = replied.caption or ""
+        elif replied.document:
+            media_type = "document"
+            media_file_id = replied.document.file_id
+            rules_text = replied.caption or ""
+        else:
+            rules_text = replied.html_text or replied.text or ""
+
+        cmd_html = message.html_text or message.text or ""
+        parts = cmd_html.split(maxsplit=1)
+        if len(parts) > 1 and parts[1].strip():
+            rules_text = parts[1].strip()
+    else:
+        cmd_html = message.html_text or message.text or ""
+        parts = cmd_html.split(maxsplit=1)
+        if len(parts) < 2 or not parts[1].strip():
+            help_text = animate_text(
+                f"{E_ALERT} <b>How to Configure Group Rules:</b>\n\n"
+                f"1. <b>Text/Links:</b> <code>/setrules &lt;your rules text with links/formatting&gt;</code>\n"
+                f"2. <b>Rich Media:</b> Reply to any Photo, Video, GIF, Document, or Post with <code>/setrules</code>\n\n"
+                f"{POWERED_BY_FOOTER}"
+            )
+            await reply_with_ttl(message, help_text, ttl_type=TTLType.MODERATION)
+            return
+        rules_text = parts[1].strip()
+
+    db_group.rules_text = rules_text
+    db_group.rules_media_type = media_type
+    db_group.rules_media_file_id = media_file_id
+    await session.commit()
 
     if message.from_user:
         await AuditService.log_action(
@@ -637,13 +801,46 @@ async def handle_set_rules(
             admin_user_id=message.from_user.id,
             admin_user_name=message.from_user.full_name or message.from_user.first_name,
             action=ActionType.RULES_UPDATE,
-            reason=f"Updated group rules",
+            reason="Configured group rules",
             channel_id=db_group.log_channel_id,
         )
 
+    card = format_card(
+        title=f"{E_DIAMOND} GROUP RULES CONFIGURED",
+        fields=[
+            ("Group", f"<b>{escape_html(db_group.title)}</b>"),
+            ("Media Attached", f"<code>{media_type.upper() if media_type else 'TEXT ONLY'}</code>"),
+            ("Interactive Button", "🟢 Check Rules (Active)"),
+            ("Status", "✅ Saved & Operational"),
+        ],
+        footer=f"Members can view the rules via /rules\n\n{POWERED_BY_FOOTER}",
+    )
+    await reply_with_ttl(message, animate_text(card), ttl_type=TTLType.MODERATION)
+
+
+@router.message(Command("clearrules", "resetrules"))
+async def handle_clear_rules(
+    message: Message,
+    session: Optional[AsyncSession] = None,
+    db_group: Optional[Group] = None,
+    is_admin: bool = False,
+):
+    if not db_group or not session:
+        await message.answer("⚠️ This command can only be used in a supergroup.")
+        return
+
+    if not is_admin:
+        await message.answer("❌ Only administrators can reset group rules.")
+        return
+
+    db_group.rules_text = None
+    db_group.rules_media_type = None
+    db_group.rules_media_file_id = None
+    await session.commit()
+
     await reply_with_ttl(
         message,
-        animate_text(f"{E_DIAMOND} Group rules have been updated!\n\n{POWERED_BY_FOOTER}"),
+        animate_text(f"{E_CHECK} <b>Group rules have been cleared and reset.</b>\n\n{POWERED_BY_FOOTER}"),
         ttl_type=TTLType.MODERATION,
     )
 

@@ -127,6 +127,24 @@ class CaptchaService:
         redis = await redis_manager.get_client()
         await redis.delete(f"rgcbot:captcha:{group.chat_id}:{user_id}")
 
+        # Mark user verified in DB
+        try:
+            from src.core.database import db
+            from src.models.user import User
+            from sqlalchemy import select
+            from datetime import datetime
+            async for session in db.get_session():
+                u_res = await session.execute(select(User).where(User.user_id == user_id))
+                u = u_res.scalars().first()
+                if u:
+                    u.is_dm_active = True
+                    u.has_started_bot = True
+                    u.last_active_at = datetime.utcnow()
+                    await session.commit()
+                break
+        except Exception as e:
+            logger.debug(f"Note updating verified user in DB: {e}")
+
         # Send audit log
         await AuditService.log_action(
             bot=bot,

@@ -464,6 +464,41 @@ async def handle_sa_close(call: CallbackQuery):
         await call.message.delete()
 
 
+def _extract_broadcast_params(message: Message) -> tuple[str, bool, str]:
+    raw_html = message.html_text or message.text or ""
+    words = raw_html.split()
+    target_type = "all"
+    pin = False
+    consumed_count = 1  # the command word
+
+    if message.text and message.text.startswith("/gcast"):
+        target_type = "groups"
+
+    for w in words[1:]:
+        low = w.lower().strip()
+        if low in ["-all", "all", "-a"]:
+            target_type = "all"
+            consumed_count += 1
+        elif low in ["-users", "users", "-u", "-user", "user"]:
+            target_type = "users"
+            consumed_count += 1
+        elif low in ["-active", "active", "-verified", "verified"]:
+            target_type = "active"
+            consumed_count += 1
+        elif low in ["-groups", "groups", "-g", "-group", "group", "-chats", "chats", "-c"]:
+            target_type = "groups"
+            consumed_count += 1
+        elif low in ["-pin", "pin", "-p"]:
+            pin = True
+            consumed_count += 1
+        else:
+            break
+
+    chunks = raw_html.split(None, consumed_count)
+    payload_text = chunks[consumed_count].strip() if len(chunks) > consumed_count else ""
+    return target_type, pin, payload_text
+
+
 @router.message(Command("broadcast", "gcast"))
 async def handle_broadcast(
     message: Message,
@@ -471,40 +506,27 @@ async def handle_broadcast(
 ):
     if not message.from_user or not is_super_admin(message.from_user.id):
         return
-    tokens = message.text.split() if message.text else []
-    target_type = "all"
-    pin = False
-    remaining = []
-    for t in tokens[1:]:
-        low = t.lower()
-        if low in ["-all", "all", "-a"]:
-            target_type = "all"
-        elif low in ["-users", "users", "-u", "-user", "user"]:
-            target_type = "users"
-        elif low in ["-groups", "groups", "-g", "-group", "group", "-chats", "chats", "-c"]:
-            target_type = "groups"
-        elif low in ["-pin", "pin", "-p"]:
-            pin = True
-        else:
-            remaining.append(t)
-    if message.text and message.text.startswith("/gcast"):
-        target_type = "groups"
-    raw_text = " ".join(remaining).strip()
-    payload_msg = message.reply_to_message or message
-    if payload_msg == message and not raw_text:
+
+    target_type, pin, raw_html_text = _extract_broadcast_params(message)
+    source_msg = message.reply_to_message
+
+    if not source_msg and not raw_html_text:
         help_text = (
-            "<b>Usage:</b>\n"
+            "📢 <b>GLOBAL BROADCAST USAGE:</b>\n\n"
+            "• <code>/broadcast -users &lt;message text / HTML / links&gt;</code>\n"
+            "• <code>/broadcast -groups [pin] &lt;message text&gt;</code>\n"
             "• <code>/broadcast -all [pin] &lt;message text&gt;</code>\n"
-            "• <code>/broadcast -users &lt;message text&gt;</code>\n"
-            "• <code>/broadcast -groups &lt;message text&gt;</code>\n"
-            "• Or reply to any Photo/Video/GIF/Sticker/Audio/Text with <code>/broadcast -all</code>"
+            "• <code>/broadcast -active &lt;message text&gt;</code> (Verified DM Users)\n\n"
+            "<i>💡 Tip: Reply to ANY Photo, Video, GIF, Document, Voice note, or Post with <code>/broadcast -all</code> to copy/forward rich media with full formatting and links!</i>"
         )
         await message.answer(help_text, parse_mode="HTML")
         return
 
+    media_desc = "YES (Rich Media Copy)" if source_msg else "HTML Rich Text"
     progress_msg = await message.answer(
         f"⚡ <b>Initializing Parallel Broadcast...</b>\n\n"
         f"• <b>Scope:</b> <code>{target_type.upper()}</code>\n"
+        f"• <b>Media Attached:</b> <code>{media_desc}</code>\n"
         f"• <b>Status:</b> <i>Spinning up background worker pool...</i>\n\n"
         f"<i>Bot remains 100% active and responsive during dispatch.</i>",
         parse_mode="HTML",
@@ -514,8 +536,8 @@ async def handle_broadcast(
         bot=message.bot,
         admin_id=message.from_user.id,
         target_type=target_type,
-        text=raw_text if raw_text else None,
-        source_message=message.reply_to_message,
+        text=raw_html_text if raw_html_text else None,
+        source_message=source_msg,
         pin=pin,
         status_msg=progress_msg,
     )

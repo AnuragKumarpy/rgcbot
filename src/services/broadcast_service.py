@@ -73,7 +73,13 @@ class BroadcastService:
         # 1. Fetch Target Chat IDs safely with dedicated DB session
         try:
             async for session in db.get_session():
-                if target_type in ("users", "all"):
+                from sqlalchemy import or_
+                if target_type in ("active", "verified"):
+                    res_u = await session.execute(
+                        select(User.user_id).where(or_(User.is_dm_active == True, User.has_started_bot == True))
+                    )
+                    target_chat_ids.extend(res_u.scalars().all())
+                elif target_type in ("users", "all"):
                     res_u = await session.execute(select(User.user_id))
                     target_chat_ids.extend(res_u.scalars().all())
 
