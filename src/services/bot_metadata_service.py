@@ -6,6 +6,7 @@ from aiogram.types import (
     BotCommandScopeDefault, BotCommandScopeChat,
 )
 from loguru import logger
+from src.config.settings import settings
 
 
 async def setup_bot_metadata(bot: Bot):
